@@ -3,6 +3,8 @@ import * as path from 'path';
 import { Logger, getLogger } from './Logger';
 import { ConfigInitResult, CONFIG_FILE_MAPPINGS, ErrorCodes } from '../types';
 
+const NGINX_REQUIRED_DIRS = ['logs', 'temp/client_body_temp', 'temp/proxy_temp', 'temp/fastcgi_temp', 'temp/uwsgi_temp', 'temp/scgi_temp'];
+
 export class ConfigInitializer {
   private logger: Logger;
   private deerflowPath: string;
@@ -38,6 +40,8 @@ export class ConfigInitializer {
       }
     }
 
+    this.createNginxDirectories();
+
     if (result.created.length > 0) {
       this.logger.info(`Created: ${result.created.join(', ')}`);
     }
@@ -49,6 +53,20 @@ export class ConfigInitializer {
     }
 
     return result;
+  }
+
+  private createNginxDirectories(): void {
+    for (const dir of NGINX_REQUIRED_DIRS) {
+      const dirPath = path.join(this.deerflowPath, dir);
+      if (!fs.existsSync(dirPath)) {
+        try {
+          fs.mkdirSync(dirPath, { recursive: true });
+          this.logger.debug(`Created nginx directory: ${dir}`);
+        } catch (error) {
+          this.logger.warn(`Failed to create nginx directory ${dir}: ${error}`);
+        }
+      }
+    }
   }
 
   private async processConfigFile(

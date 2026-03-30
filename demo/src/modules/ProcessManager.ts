@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs';
-import * as PM2 from 'pm2';
+import PM2 from 'pm2';
 import { Logger, getLogger } from './Logger';
 import { HealthChecker } from './HealthChecker';
 import {
@@ -16,6 +16,7 @@ export interface PM2ProcessConfig {
   script: string;
   args?: string[];
   cwd: string;
+  interpreter?: string;
   exec_mode?: string;
   instances?: number;
   autorestart?: boolean;
@@ -91,11 +92,35 @@ export class ProcessManager {
       fs.mkdirSync(this.logDir, { recursive: true });
     }
 
-    return {
+    const isNodeScript = service.script.endsWith('.js') || 
+                         service.script.endsWith('.ts') ||
+                         service.script.endsWith('.mjs');
+    
+    const isWindows = process.platform === 'win32';
+    
+    let script = service.script;
+    let args = service.args || [];
+    let interpreter: string | undefined;
+    
+    if (isNodeScript) {
+      interpreter = undefined;
+    } else if (isWindows) {
+      script = 'cmd.exe';
+      const fullCommand = service.args && service.args.length > 0
+        ? `${service.script} ${service.args.join(' ')}`
+        : service.script;
+      args = ['/c', fullCommand];
+      interpreter = undefined;
+    } else {
+      interpreter = 'none';
+    }
+    
+    const config: PM2ProcessConfig = {
       name: service.name,
-      script: service.script,
-      args: service.args,
+      script: script,
+      args: args,
       cwd: service.cwd,
+      interpreter: interpreter,
       exec_mode: 'fork',
       instances: 1,
       autorestart: false,
@@ -108,6 +133,8 @@ export class ProcessManager {
       time: true,
       env: service.env
     };
+
+    return config;
   }
 
   async startService(

@@ -156,5 +156,6 @@ export const CONFIG_FILE_MAPPINGS: ConfigFileMapping[] = [
   { template: 'config.example.yaml', target: 'config.yaml' },
   { template: '.env.example', target: '.env' },
   { template: 'frontend/.env.example', target: 'frontend/.env' },
-  { template: 'extensions_config.example.json', target: 'extensions_config.json' }
+  { template: 'extensions_config.example.json', target: 'extensions_config.json' },
+  { template: 'docker/nginx/nginx.local.conf', target: 'nginx.conf' }
 ];
