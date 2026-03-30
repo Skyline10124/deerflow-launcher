@@ -1,4 +1,5 @@
 import PM2 from 'pm2';
+import { execSync } from 'child_process';
 import { Logger, getLogger } from './Logger';
 import { ServiceName, ServiceStatus } from '../types';
 
@@ -109,7 +110,7 @@ export class ProcessMonitor {
 
         const pm2Status = proc.pm2_env?.status;
         
-        if (pm2Status === 'errored' || pm2Status === 'stopped') {
+        if (pm2Status === 'errored') {
           await this.handleProcessError(serviceName, proc);
         } else if (pm2Status === 'online') {
           this.restartAttempts.set(serviceName, 0);
@@ -188,16 +189,64 @@ export class ProcessMonitor {
 
     const processes = await this.listProcesses();
     
-    return processes.map(proc => ({
-      name: proc.name,
-      status: this.mapStatus(proc.pm2_env?.status),
-      cpu: proc.monit?.cpu || 0,
-      memory: proc.monit?.memory || 0,
-      restarts: proc.pm2_env?.restart_time || 0,
-      uptime: proc.pm2_env?.pm_uptime ? Date.now() - proc.pm2_env.pm_uptime : 0,
-      pid: proc.pid,
-      port: proc.pm2_env?.env?.PORT
-    }));
+    return processes.map(proc => {
+      const pid = proc.pid;
+      let cpu = proc.monit?.cpu || 0;
+      let memory = proc.monit?.memory || 0;
+      
+      if (process.platform === 'win32' && pid) {
+        const winMetrics = this.getWindowsProcessMetrics(pid);
+        if (winMetrics) {
+          cpu = winMetrics.cpu;
+          memory = winMetrics.memory;
+        }
+      }
+      
+      return {
+        name: proc.name,
+        status: this.mapStatus(proc.pm2_env?.status),
+        cpu,
+        memory,
+        restarts: proc.pm2_env?.restart_time || 0,
+        uptime: proc.pm2_env?.pm_uptime ? Date.now() - proc.pm2_env.pm_uptime : 0,
+        pid: proc.pid,
+        port: proc.pm2_env?.env?.PORT
+      };
+    });
+  }
+
+  private getWindowsProcessMetrics(pid: number): { cpu: number; memory: number } | null {
+    try {
+      const script = `$ErrorActionPreference='SilentlyContinue';$p=Get-Process -Id ${pid};if($p){$mem=$p.WorkingSet64;$perf=Get-CimInstance Win32_PerfFormattedData_PerfProc_Process|Where-Object{$_.IDProcess -eq ${pid}};$cpu=if($perf){$perf.PercentProcessorTime}else{0};@{CPU=[math]::Round($cpu,1);Memory=$mem}|ConvertTo-Json -Compress}`;
+      const encodedScript = Buffer.from(script, 'utf16le').toString('base64');
+      const output = execSync(
+        `pwsh -NoProfile -EncodedCommand ${encodedScript}`,
+        { encoding: 'utf-8', timeout: 5000, windowsHide: true }
+      );
+      
+      const data = JSON.parse(output.trim());
+      if (data) {
+        return { cpu: Math.round(data.CPU || 0), memory: data.Memory || 0 };
+      }
+    } catch {
+      // Fallback to tasklist for memory only
+      try {
+        const output = execSync(
+          `tasklist /fi "PID eq ${pid}" /fo csv /nh`,
+          { encoding: 'utf-8', timeout: 3000, windowsHide: true }
+        );
+        
+        const match = output.match(/"[^"]+","(\d+)","[^"]*","[^"]*","([\d,]+)\s*K"/i);
+        if (match) {
+          const memoryKB = parseInt(match[2].replace(/,/g, ''), 10);
+          const memory = memoryKB * 1024;
+          return { cpu: 0, memory };
+        }
+      } catch {
+        // Ignore errors
+      }
+    }
+    return null;
   }
 
   private mapStatus(pm2Status?: string): ProcessStatus['status'] {

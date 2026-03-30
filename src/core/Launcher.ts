@@ -3,6 +3,8 @@ import { Logger, getLogger, setDefaultLogger, LogLevel } from '../modules/Logger
 import { EnvChecker } from '../modules/EnvChecker';
 import { ConfigInitializer } from '../modules/ConfigInitializer';
 import { ProcessManager } from '../modules/ProcessManager';
+import { ProcessMonitor } from '../modules/ProcessMonitor';
+import { ConfigWatcher, ConfigChange } from '../modules/ConfigWatcher';
 import {
   LaunchContext,
   LaunchResult,
@@ -33,7 +35,11 @@ export class Launcher {
   private envChecker: EnvChecker;
   private configInitializer: ConfigInitializer;
   private processManager: ProcessManager;
+  private processMonitor: ProcessMonitor;
+  private configWatcher: ConfigWatcher;
   private context: LaunchContext;
+  private isStopping: boolean = false;
+  private isCleaningUp: boolean = false;
 
   constructor(options: LauncherOptions) {
     const logDir = options.logDir ?? path.join(process.cwd(), 'logs');
@@ -49,6 +55,8 @@ export class Launcher {
     this.envChecker = new EnvChecker();
     this.configInitializer = new ConfigInitializer(options.deerflowPath);
     this.processManager = new ProcessManager(logDir);
+    this.processMonitor = new ProcessMonitor();
+    this.configWatcher = new ConfigWatcher(options.deerflowPath);
   }
 
   async start(): Promise<LaunchResult> {
@@ -155,10 +163,26 @@ export class Launcher {
       }
     }
     
+    await this.processMonitor.connect();
+    this.processMonitor.startMonitoring(SERVICE_START_ORDER);
+    this.processMonitor.onError((serviceName, error) => {
+      this.logger.error(`Service ${serviceName} error: ${error.message}`);
+    });
+    
+    this.configWatcher.onChange((change: ConfigChange) => {
+      this.logger.info(`Config file changed: ${change.file}`);
+    });
+    this.configWatcher.start();
+    
     this.logger.info('');
   }
 
   async stop(): Promise<void> {
+    if (this.isStopping) {
+      return;
+    }
+    this.isStopping = true;
+    
     this.logger.info('Stopping DeerFlow...');
     setLaunchStatus(this.context, LaunchStatus.SHUTTING_DOWN);
     
@@ -168,9 +192,17 @@ export class Launcher {
   }
 
   private async cleanup(): Promise<void> {
+    if (this.isCleaningUp) {
+      return;
+    }
+    this.isCleaningUp = true;
+    
     this.logger.info('Starting cleanup...');
     
     try {
+      this.configWatcher.stop();
+      this.processMonitor.stopMonitoring();
+      await this.processMonitor.disconnect();
       await this.processManager.stopAll(this.context.services);
       await this.processManager.disconnect();
     } catch (error) {

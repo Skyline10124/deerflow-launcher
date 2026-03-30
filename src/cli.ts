@@ -265,3 +265,8 @@ function getDeerFlowPath(): string {
 
   return process.cwd();
 }
+
+runCLI().catch((error) => {
+  console.error('CLI error:', error);
+  process.exit(1);
+});

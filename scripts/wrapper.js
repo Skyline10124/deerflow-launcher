@@ -72,9 +72,25 @@ proc.on('error', (err) => {
   process.exit(1);
 });
 
-process.on('SIGINT', () => {
-  proc.kill('SIGINT');
-});
-process.on('SIGTERM', () => {
-  proc.kill('SIGTERM');
-});
+let isExiting = false;
+
+function gracefulShutdown() {
+  if (isExiting) return;
+  isExiting = true;
+  
+  if (process.platform === 'win32') {
+    proc.kill('SIGTERM');
+    setTimeout(() => {
+      try {
+        proc.kill('SIGKILL');
+      } catch (e) {}
+      process.exit(0);
+    }, 3000);
+  } else {
+    proc.kill('SIGTERM');
+  }
+}
+
+process.on('SIGINT', gracefulShutdown);
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGBREAK', gracefulShutdown);

@@ -86,14 +86,24 @@ async function main(): Promise<void> {
 
   const launcher = new Launcher(options);
 
-  const handleShutdown = async (signal: string) => {
+  let shutdownResolve: () => void;
+  const shutdownPromise = new Promise<void>((resolve) => {
+    shutdownResolve = resolve;
+  });
+
+  const handleShutdown = (signal: string) => {
+    process.removeAllListeners('SIGINT');
+    process.removeAllListeners('SIGTERM');
+    process.removeAllListeners('SIGBREAK');
+    
     console.log(`\nReceived ${signal}, shutting down...`);
-    try {
-      await launcher.stop();
-    } catch (error) {
-      console.error('Error during shutdown:', error);
-    }
-    process.exit(0);
+    
+    launcher.stop()
+      .then(() => shutdownResolve())
+      .catch((error) => {
+        console.error('Error during shutdown:', error);
+        shutdownResolve();
+      });
   };
 
   process.on('SIGINT', () => handleShutdown('SIGINT'));
@@ -108,10 +118,7 @@ async function main(): Promise<void> {
     
     if (result.success) {
       console.log('\nPress Ctrl+C to stop the services...');
-      
-      await new Promise<void>((resolve) => {
-        process.on('beforeExit', () => resolve());
-      });
+      await shutdownPromise;
     } else {
       console.error('\nLaunch failed!');
       console.error(`Error: ${result.error}`);

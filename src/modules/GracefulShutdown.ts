@@ -79,6 +79,7 @@ export class GracefulShutdown {
     clearTimeout(forceExit);
     
     this.logger.info('所有服务已停止，退出码: 0');
+    await new Promise(resolve => setTimeout(resolve, 100));
     process.exit(0);
   }
 
@@ -91,6 +92,7 @@ export class GracefulShutdown {
     const results: ShutdownResult[] = [];
 
     for (const serviceName of this.config.shutdownOrder) {
+      this.logger.debug(`Starting to stop ${serviceName}...`);
       const startTime = Date.now();
       
       try {

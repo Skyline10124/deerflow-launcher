@@ -245,31 +245,59 @@ export class ProcessManager {
 
     this.logger.info(`Stopping ${name} service...`);
 
+    const timeout = 10000;
+    
     try {
-      await new Promise<void>((resolve, reject) => {
+      const stopPromise = new Promise<void>((resolve, reject) => {
+        this.logger.debug(`PM2.stop(${name}) called`);
         PM2.stop(name, (err: Error | null) => {
           if (err) {
+            this.logger.debug(`PM2.stop(${name}) error: ${err.message}`);
             reject(err);
           } else {
+            this.logger.debug(`PM2.stop(${name}) success`);
             resolve();
           }
         });
       });
 
-      await new Promise<void>((resolve, reject) => {
+      await Promise.race([
+        stopPromise,
+        new Promise<void>((_, reject) => 
+          setTimeout(() => reject(new Error(`PM2.stop(${name}) timeout`)), timeout)
+        )
+      ]);
+
+      const deletePromise = new Promise<void>((resolve, reject) => {
+        this.logger.debug(`PM2.delete(${name}) called`);
         PM2.delete(name, (err: Error | null) => {
           if (err) {
+            this.logger.debug(`PM2.delete(${name}) error: ${err.message}`);
             reject(err);
           } else {
+            this.logger.debug(`PM2.delete(${name}) success`);
             resolve();
           }
         });
       });
+
+      await Promise.race([
+        deletePromise,
+        new Promise<void>((_, reject) => 
+          setTimeout(() => reject(new Error(`PM2.delete(${name}) timeout`)), timeout)
+        )
+      ]);
 
       this.logger.info(`Stopped ${name}`);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Failed to stop ${name}: ${errorMsg}`);
+      this.logger.warn(`${errorMsg}, forcing delete...`);
+      
+      await new Promise<void>((resolve) => {
+        PM2.delete(name, () => resolve());
+      });
+      
+      this.logger.info(`Force stopped ${name}`);
     }
   }
 
@@ -316,9 +344,12 @@ export class ProcessManager {
   async stopAll(services: Map<ServiceName, ServiceInstance>): Promise<void> {
     this.logger.info('Stopping all services...');
 
-    for (const [name, instance] of services) {
-      if (instance.status === ServiceStatus.HEALTHY || 
-          instance.status === ServiceStatus.STARTING) {
+    const stopOrder = [ServiceName.NGINX, ServiceName.FRONTEND, ServiceName.GATEWAY, ServiceName.LANGGRAPH];
+    
+    for (const name of stopOrder) {
+      const instance = services.get(name);
+      if (instance && (instance.status === ServiceStatus.HEALTHY || 
+          instance.status === ServiceStatus.STARTING)) {
         await this.stopService(name);
       }
     }
