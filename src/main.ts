@@ -2,8 +2,19 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { Launcher, LauncherOptions } from './core/Launcher';
 import { LogLevel, parseLogLevel } from './modules/Logger';
+import { ProcessManager } from './modules/ProcessManager';
 
 const DEBUG_MODE = process.env.DEBUG_LAUNCHER === 'true';
+const CLEAN_MODE = process.argv.includes('--clean') || process.argv.includes('-c');
+
+async function cleanupAllProcesses(): Promise<void> {
+  console.log('Cleaning up all managed processes...');
+  const pm = new ProcessManager(path.join(process.cwd(), 'logs'));
+  await pm.connect();
+  await pm.killAllManagedProcesses();
+  await pm.disconnect();
+  console.log('Cleanup completed.');
+}
 
 function getDeerFlowPath(): string {
   const envPath = process.env.DEERFLOW_PATH;
@@ -51,6 +62,11 @@ function getLogLevel(): LogLevel {
 }
 
 async function main(): Promise<void> {
+  if (CLEAN_MODE) {
+    await cleanupAllProcesses();
+    process.exit(0);
+  }
+
   const deerflowPath = getDeerFlowPath();
   const logDir = path.join(process.cwd(), 'logs');
   const logLevel = getLogLevel();

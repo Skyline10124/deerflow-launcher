@@ -24,7 +24,6 @@ export class Logger {
   private enableConsole: boolean;
   private enableFile: boolean;
   private logFile: string | null = null;
-  private errorLogFile: string | null = null;
 
   constructor(module: string, options: LoggerOptions = {}) {
     this.module = module;
@@ -43,15 +42,10 @@ export class Logger {
       fs.mkdirSync(this.logDir, { recursive: true });
     }
 
-    const date = new Date().toISOString().split('T')[0];
-    this.logFile = path.join(this.logDir, `launcher-${date}.log`);
-    this.errorLogFile = path.join(this.logDir, `launcher-error-${date}.log`);
+    this.logFile = path.join(this.logDir, 'launcher.log');
     
     if (!fs.existsSync(this.logFile)) {
       fs.writeFileSync(this.logFile, '');
-    }
-    if (!fs.existsSync(this.errorLogFile)) {
-      fs.writeFileSync(this.errorLogFile, '');
     }
   }
 
@@ -64,12 +58,9 @@ export class Logger {
     return `[${timestamp}] [${level}] [${this.module}] ${message}`;
   }
 
-  private writeToFile(formattedMessage: string, isError: boolean = false): void {
+  private writeToFile(formattedMessage: string): void {
     if (this.logFile) {
       fs.appendFileSync(this.logFile, formattedMessage + '\n');
-    }
-    if (isError && this.errorLogFile) {
-      fs.appendFileSync(this.errorLogFile, formattedMessage + '\n');
     }
   }
 
@@ -109,11 +100,11 @@ export class Logger {
       if (this.enableConsole) {
         console.log(chalk.red(formatted));
       }
-      this.writeToFile(formatted, true);
+      this.writeToFile(formatted);
       
       if (error?.stack) {
         const stackLine = this.formatMessage('ERROR', `Stack: ${error.stack}`);
-        this.writeToFile(stackLine, true);
+        this.writeToFile(stackLine);
       }
     }
   }

@@ -11,6 +11,8 @@ import {
   ErrorCodes
 } from '../types';
 
+const MANAGED_SERVICE_NAMES = Object.values(ServiceName);
+
 export interface PM2ProcessConfig {
   name: string;
   script: string;
@@ -71,16 +73,19 @@ export class ProcessManager {
   private async cleanupStaleProcesses(): Promise<void> {
     try {
       const list = await this.listProcesses();
-      const serviceNames = ['langgraph', 'gateway', 'frontend', 'nginx'];
+      const normalizedLogDir = path.resolve(this.logDir).toLowerCase();
       
       for (const proc of list) {
-        if (serviceNames.includes(proc.name)) {
-          const logPath = proc.pm2_env?.pm_log_path || '';
-          if (logPath.includes('demo') || logPath.includes('launcher\\demo')) {
-            this.logger.debug(`Cleaning stale process: ${proc.name}`);
-            await new Promise<void>((resolve) => {
-              PM2.delete(proc.name, () => resolve());
-            });
+        if (MANAGED_SERVICE_NAMES.includes(proc.name)) {
+          const procLogPath = proc.pm2_env?.pm_log_path || proc.pm2_env?.log_file || '';
+          if (procLogPath) {
+            const normalizedProcLogPath = path.resolve(procLogPath).toLowerCase();
+            if (!normalizedProcLogPath.startsWith(normalizedLogDir)) {
+              this.logger.debug(`Cleaning stale process (log path mismatch): ${proc.name}`);
+              await new Promise<void>((resolve) => {
+                PM2.delete(proc.name, () => resolve());
+              });
+            }
           }
         }
       }
@@ -120,6 +125,7 @@ export class ProcessManager {
                          service.script.endsWith('.mjs');
     
     const isWindows = process.platform === 'win32';
+    const nullDevice = isWindows ? 'NUL' : '/dev/null';
     
     let script = service.script;
     let args = service.args || [];
@@ -128,11 +134,9 @@ export class ProcessManager {
     if (isNodeScript) {
       interpreter = undefined;
     } else if (isWindows) {
-      script = 'cmd.exe';
-      const fullCommand = service.args && service.args.length > 0
-        ? `${service.script} ${service.args.join(' ')}`
-        : service.script;
-      args = ['/c', fullCommand];
+      const wrapperPath = path.join(__dirname, '..', '..', 'scripts', 'wrapper.js');
+      script = process.execPath;
+      args = [wrapperPath, service.script, ...(service.args || [])];
       interpreter = undefined;
     } else {
       interpreter = 'none';
@@ -150,11 +154,15 @@ export class ProcessManager {
       max_restarts: 0,
       min_uptime: 10000,
       log_file: path.join(this.logDir, `${service.name}.log`),
-      out_file: path.join(this.logDir, `${service.name}-out.log`),
-      error_file: path.join(this.logDir, `${service.name}-error.log`),
-      merge_logs: false,
+      out_file: nullDevice,
+      error_file: nullDevice,
+      merge_logs: true,
       time: true,
-      env: service.env
+      env: service.env,
+      ...(isWindows && !isNodeScript ? { 
+        windowsHide: true,
+        kill_timeout: 3000
+      } : {})
     };
 
     return config;
@@ -272,17 +280,36 @@ export class ProcessManager {
       if (existing) {
         this.logger.debug(`Deleting existing process: ${name}`);
         await new Promise<void>((resolve, reject) => {
-          PM2.delete(name, (err: Error | null) => {
-            if (err) {
-              reject(err);
-            } else {
-              resolve();
-            }
+          PM2.stop(name, (stopErr: Error | null) => {
+            PM2.delete(name, (delErr: Error | null) => {
+              if (delErr && !delErr.message.includes("doesn't exist")) {
+                reject(delErr);
+              } else {
+                resolve();
+              }
+            });
           });
         });
       }
     } catch {
       // Ignore errors - process may not exist
+    }
+  }
+
+  async killAllManagedProcesses(): Promise<void> {
+    this.logger.info('Killing all managed processes...');
+    try {
+      const list = await this.listProcesses();
+      for (const proc of list) {
+        if (MANAGED_SERVICE_NAMES.includes(proc.name)) {
+          this.logger.debug(`Killing process: ${proc.name}`);
+          await new Promise<void>((resolve) => {
+            PM2.delete(proc.name, () => resolve());
+          });
+        }
+      }
+    } catch {
+      // Ignore errors
     }
   }
 
