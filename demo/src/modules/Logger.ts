@@ -6,7 +6,8 @@ export enum LogLevel {
   DEBUG = 0,
   INFO = 1,
   WARN = 2,
-  ERROR = 3
+  ERROR = 3,
+  SILENT = 4
 }
 
 export interface LoggerOptions {
@@ -23,10 +24,11 @@ export class Logger {
   private enableConsole: boolean;
   private enableFile: boolean;
   private logFile: string | null = null;
+  private errorLogFile: string | null = null;
 
   constructor(module: string, options: LoggerOptions = {}) {
     this.module = module;
-    this.level = options.level ?? LogLevel.DEBUG;
+    this.level = options.level ?? LogLevel.INFO;
     this.logDir = options.logDir ?? path.join(process.cwd(), 'logs');
     this.enableConsole = options.enableConsole ?? true;
     this.enableFile = options.enableFile ?? true;
@@ -43,18 +45,18 @@ export class Logger {
 
     const date = new Date().toISOString().split('T')[0];
     this.logFile = path.join(this.logDir, `launcher-${date}.log`);
+    this.errorLogFile = path.join(this.logDir, `launcher-error-${date}.log`);
     
     if (!fs.existsSync(this.logFile)) {
       fs.writeFileSync(this.logFile, '');
     }
+    if (!fs.existsSync(this.errorLogFile)) {
+      fs.writeFileSync(this.errorLogFile, '');
+    }
   }
 
   private formatTimestamp(): string {
-    const now = new Date();
-    const hours = now.getHours().toString().padStart(2, '0');
-    const minutes = now.getMinutes().toString().padStart(2, '0');
-    const seconds = now.getSeconds().toString().padStart(2, '0');
-    return `${hours}:${minutes}:${seconds}`;
+    return new Date().toISOString();
   }
 
   private formatMessage(level: string, message: string): string {
@@ -62,9 +64,12 @@ export class Logger {
     return `[${timestamp}] [${level}] [${this.module}] ${message}`;
   }
 
-  private writeToFile(formattedMessage: string): void {
+  private writeToFile(formattedMessage: string, isError: boolean = false): void {
     if (this.logFile) {
       fs.appendFileSync(this.logFile, formattedMessage + '\n');
+    }
+    if (isError && this.errorLogFile) {
+      fs.appendFileSync(this.errorLogFile, formattedMessage + '\n');
     }
   }
 
@@ -98,13 +103,18 @@ export class Logger {
     }
   }
 
-  error(message: string): void {
+  error(message: string, error?: Error): void {
     if (this.level <= LogLevel.ERROR) {
       const formatted = this.formatMessage('ERROR', message);
       if (this.enableConsole) {
         console.log(chalk.red(formatted));
       }
-      this.writeToFile(formatted);
+      this.writeToFile(formatted, true);
+      
+      if (error?.stack) {
+        const stackLine = this.formatMessage('ERROR', `Stack: ${error.stack}`);
+        this.writeToFile(stackLine, true);
+      }
     }
   }
 
@@ -138,4 +148,20 @@ export function getDefaultLogger(): Logger {
 
 export function setDefaultLogger(logger: Logger): void {
   defaultLogger = logger;
+}
+
+export function parseLogLevel(level?: string): LogLevel {
+  switch (level?.toLowerCase()) {
+    case 'debug':
+      return LogLevel.DEBUG;
+    case 'warn':
+    case 'warning':
+      return LogLevel.WARN;
+    case 'error':
+      return LogLevel.ERROR;
+    case 'silent':
+      return LogLevel.SILENT;
+    default:
+      return LogLevel.INFO;
+  }
 }

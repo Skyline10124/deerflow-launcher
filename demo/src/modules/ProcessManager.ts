@@ -1,5 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs';
+import * as PM2 from 'pm2';
 import { Logger, getLogger } from './Logger';
 import { HealthChecker } from './HealthChecker';
 import {
@@ -19,7 +20,7 @@ export interface PM2ProcessConfig {
   instances?: number;
   autorestart?: boolean;
   max_restarts?: number;
-  min_uptime?: string;
+  min_uptime?: number;
   log_file?: string;
   out_file?: string;
   error_file?: string;
@@ -31,7 +32,6 @@ export interface PM2ProcessConfig {
 export class ProcessManager {
   private logger: Logger;
   private healthChecker: HealthChecker;
-  private pm2: any = null;
   private connected: boolean = false;
   private logDir: string;
 
@@ -47,10 +47,8 @@ export class ProcessManager {
     }
 
     try {
-      this.pm2 = require('pm2');
-      
       await new Promise<void>((resolve, reject) => {
-        this.pm2.connect((err: Error | null) => {
+        PM2.connect((err: Error | null) => {
           if (err) {
             reject(err);
           } else {
@@ -68,17 +66,24 @@ export class ProcessManager {
   }
 
   async disconnect(): Promise<void> {
-    if (!this.connected || !this.pm2) {
+    if (!this.connected) {
       return;
     }
 
-    await new Promise<void>((resolve) => {
-      this.pm2.disconnect(() => {
+    return new Promise<void>((resolve) => {
+      try {
+        PM2.disconnect();
         this.connected = false;
         this.logger.debug('Disconnected from PM2');
-        resolve();
-      });
+      } catch (error) {
+        this.logger.warn('Error during PM2 disconnect');
+      }
+      resolve();
     });
+  }
+
+  isConnected(): boolean {
+    return this.connected;
   }
 
   private buildPM2Config(service: ServiceDefinition): PM2ProcessConfig {
@@ -95,7 +100,7 @@ export class ProcessManager {
       instances: 1,
       autorestart: false,
       max_restarts: 0,
-      min_uptime: '10s',
+      min_uptime: 10000,
       log_file: path.join(this.logDir, `${service.name}.log`),
       out_file: path.join(this.logDir, `${service.name}-out.log`),
       error_file: path.join(this.logDir, `${service.name}-error.log`),
@@ -131,7 +136,7 @@ export class ProcessManager {
       const config = this.buildPM2Config(service);
 
       const proc = await new Promise<any>((resolve, reject) => {
-        this.pm2.start(config, (err: Error | null, proc: any) => {
+        PM2.start(config, (err: Error | null, proc: any) => {
           if (err) {
             reject(err);
           } else {
@@ -173,11 +178,16 @@ export class ProcessManager {
   }
 
   async stopService(name: ServiceName): Promise<void> {
+    if (!this.connected) {
+      this.logger.warn(`PM2 not connected, cannot stop ${name}`);
+      return;
+    }
+
     this.logger.info(`Stopping ${name} service...`);
 
     try {
       await new Promise<void>((resolve, reject) => {
-        this.pm2.stop(name, (err: Error | null) => {
+        PM2.stop(name, (err: Error | null) => {
           if (err) {
             reject(err);
           } else {
@@ -187,7 +197,7 @@ export class ProcessManager {
       });
 
       await new Promise<void>((resolve, reject) => {
-        this.pm2.delete(name, (err: Error | null) => {
+        PM2.delete(name, (err: Error | null) => {
           if (err) {
             reject(err);
           } else {
@@ -220,7 +230,7 @@ export class ProcessManager {
     }
 
     return new Promise<any[]>((resolve, reject) => {
-      this.pm2.list((err: Error | null, list: any[]) => {
+      PM2.list((err: Error | null, list: any[]) => {
         if (err) {
           reject(err);
         } else {

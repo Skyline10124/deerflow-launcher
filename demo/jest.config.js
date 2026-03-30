@@ -9,5 +9,8 @@ module.exports = {
     '!src/main.ts'
   ],
   coverageDirectory: 'coverage',
-  verbose: true
+  verbose: true,
+  testTimeout: 30000,
+  detectOpenHandles: true,
+  forceExit: true
 };

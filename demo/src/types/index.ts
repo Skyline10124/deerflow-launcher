@@ -105,10 +105,12 @@ export const ErrorCodes = {
   ENV_UV_MISSING: 'ENV_UV_MISSING',
   ENV_PNPM_MISSING: 'ENV_PNPM_MISSING',
   ENV_NGINX_MISSING: 'ENV_NGINX_MISSING',
+  ENV_DEERFLOW_PATH: 'ENV_DEERFLOW_PATH',
   
   CFG_TEMPLATE_MISSING: 'CFG_TEMPLATE_MISSING',
   CFG_CREATE_FAILED: 'CFG_CREATE_FAILED',
   CFG_INVALID_PATH: 'CFG_INVALID_PATH',
+  CFG_PARSE_FAILED: 'CFG_PARSE_FAILED',
   
   START_DEPENDENCY_FAILED: 'START_DEPENDENCY_FAILED',
   START_PORT_TIMEOUT: 'START_PORT_TIMEOUT',
@@ -116,10 +118,23 @@ export const ErrorCodes = {
   START_PROCESS_CRASH: 'START_PROCESS_CRASH',
   
   RUNTIME_PM2_DISCONNECT: 'RUNTIME_PM2_DISCONNECT',
-  RUNTIME_UNEXPECTED_EXIT: 'RUNTIME_UNEXPECTED_EXIT'
+  RUNTIME_UNEXPECTED_EXIT: 'RUNTIME_UNEXPECTED_EXIT',
+  
+  SYS_PERMISSION_DENIED: 'SYS_PERMISSION_DENIED',
+  SYS_PORT_IN_USE: 'SYS_PORT_IN_USE',
+  SYS_DISK_FULL: 'SYS_DISK_FULL',
+  SYS_NETWORK_ERROR: 'SYS_NETWORK_ERROR'
 } as const;
 
 export type ErrorCode = typeof ErrorCodes[keyof typeof ErrorCodes];
+
+export interface ErrorContext {
+  service?: ServiceName;
+  port?: number;
+  path?: string;
+  command?: string;
+  [key: string]: any;
+}
 
 export interface LauncherError {
   code: ErrorCode;
@@ -127,6 +142,9 @@ export interface LauncherError {
   details?: string;
   service?: ServiceName;
   suggestion?: string;
+  context?: ErrorContext;
+  timestamp: string;
+  stack?: string;
 }
 
 export interface ConfigFileMapping {

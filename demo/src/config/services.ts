@@ -1,24 +1,49 @@
 import * as path from 'path';
 import { ServiceDefinition, ServiceName } from '../types';
 
+function getEnvInt(key: string, defaultValue: number): number {
+  const value = process.env[key];
+  if (value) {
+    const parsed = parseInt(value, 10);
+    if (!isNaN(parsed) && parsed > 0 && parsed < 65536) {
+      return parsed;
+    }
+  }
+  return defaultValue;
+}
+
+export const SERVICE_PORTS: Record<ServiceName, number> = {
+  [ServiceName.LANGGRAPH]: getEnvInt('LANGGRAPH_PORT', 2024),
+  [ServiceName.GATEWAY]: getEnvInt('GATEWAY_PORT', 8001),
+  [ServiceName.FRONTEND]: getEnvInt('FRONTEND_PORT', 3000),
+  [ServiceName.NGINX]: getEnvInt('NGINX_PORT', 2026)
+};
+
+export const SERVICE_TIMEOUTS: Record<ServiceName, number> = {
+  [ServiceName.LANGGRAPH]: getEnvInt('LANGGRAPH_TIMEOUT', 60000),
+  [ServiceName.GATEWAY]: getEnvInt('GATEWAY_TIMEOUT', 30000),
+  [ServiceName.FRONTEND]: getEnvInt('FRONTEND_TIMEOUT', 120000),
+  [ServiceName.NGINX]: getEnvInt('NGINX_TIMEOUT', 10000)
+};
+
 export function getServiceDefinitions(deerflowPath: string): ServiceDefinition[] {
   return [
     {
       name: ServiceName.LANGGRAPH,
       script: 'uv',
-      args: ['run', 'langgraph', 'dev', '--port', '2024'],
+      args: ['run', 'langgraph', 'dev', '--port', String(SERVICE_PORTS[ServiceName.LANGGRAPH])],
       cwd: path.join(deerflowPath, 'backend'),
-      port: 2024,
-      timeout: 60000,
+      port: SERVICE_PORTS[ServiceName.LANGGRAPH],
+      timeout: SERVICE_TIMEOUTS[ServiceName.LANGGRAPH],
       dependencies: []
     },
     {
       name: ServiceName.GATEWAY,
       script: 'uv',
-      args: ['run', 'uvicorn', 'app.gateway.app:create_app', '--factory', '--host', '0.0.0.0', '--port', '8001'],
+      args: ['run', 'uvicorn', 'app.gateway.app:create_app', '--factory', '--host', '0.0.0.0', '--port', String(SERVICE_PORTS[ServiceName.GATEWAY])],
       cwd: path.join(deerflowPath, 'backend'),
-      port: 8001,
-      timeout: 30000,
+      port: SERVICE_PORTS[ServiceName.GATEWAY],
+      timeout: SERVICE_TIMEOUTS[ServiceName.GATEWAY],
       dependencies: [ServiceName.LANGGRAPH]
     },
     {
@@ -26,11 +51,11 @@ export function getServiceDefinitions(deerflowPath: string): ServiceDefinition[]
       script: 'pnpm',
       args: ['dev'],
       cwd: path.join(deerflowPath, 'frontend'),
-      port: 3000,
-      timeout: 120000,
+      port: SERVICE_PORTS[ServiceName.FRONTEND],
+      timeout: SERVICE_TIMEOUTS[ServiceName.FRONTEND],
       dependencies: [ServiceName.GATEWAY],
       env: {
-        PORT: '3000'
+        PORT: String(SERVICE_PORTS[ServiceName.FRONTEND])
       }
     },
     {
@@ -40,8 +65,8 @@ export function getServiceDefinitions(deerflowPath: string): ServiceDefinition[]
         ? ['-c', path.join(deerflowPath, 'nginx.conf')]
         : ['-c', path.join(deerflowPath, 'nginx.conf')],
       cwd: deerflowPath,
-      port: 2026,
-      timeout: 10000,
+      port: SERVICE_PORTS[ServiceName.NGINX],
+      timeout: SERVICE_TIMEOUTS[ServiceName.NGINX],
       dependencies: [ServiceName.FRONTEND]
     }
   ];
@@ -53,17 +78,3 @@ export const SERVICE_START_ORDER: ServiceName[] = [
   ServiceName.FRONTEND,
   ServiceName.NGINX
 ];
-
-export const SERVICE_PORTS: Record<ServiceName, number> = {
-  [ServiceName.LANGGRAPH]: 2024,
-  [ServiceName.GATEWAY]: 8001,
-  [ServiceName.FRONTEND]: 3000,
-  [ServiceName.NGINX]: 2026
-};
-
-export const SERVICE_TIMEOUTS: Record<ServiceName, number> = {
-  [ServiceName.LANGGRAPH]: 60000,
-  [ServiceName.GATEWAY]: 30000,
-  [ServiceName.FRONTEND]: 120000,
-  [ServiceName.NGINX]: 10000
-};

@@ -1,7 +1,9 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import { Launcher, LauncherOptions } from './core/Launcher';
-import { LogLevel } from './modules/Logger';
+import { LogLevel, parseLogLevel } from './modules/Logger';
+
+const DEBUG_MODE = process.env.DEBUG_LAUNCHER === 'true';
 
 function getDeerFlowPath(): string {
   const envPath = process.env.DEERFLOW_PATH;
@@ -41,29 +43,29 @@ function getDeerFlowPath(): string {
   process.exit(1);
 }
 
-function parseLogLevel(): LogLevel {
-  const level = process.env.LOG_LEVEL?.toLowerCase();
-  switch (level) {
-    case 'debug':
-      return LogLevel.DEBUG;
-    case 'warn':
-    case 'warning':
-      return LogLevel.WARN;
-    case 'error':
-      return LogLevel.ERROR;
-    default:
-      return LogLevel.INFO;
+function getLogLevel(): LogLevel {
+  if (DEBUG_MODE) {
+    return LogLevel.DEBUG;
   }
+  return parseLogLevel(process.env.LOG_LEVEL);
 }
 
 async function main(): Promise<void> {
   const deerflowPath = getDeerFlowPath();
   const logDir = path.join(process.cwd(), 'logs');
+  const logLevel = getLogLevel();
   
+  if (DEBUG_MODE) {
+    console.log('🔍 Debug mode enabled');
+    console.log(`   DEERFLOW_PATH: ${deerflowPath}`);
+    console.log(`   Log directory: ${logDir}`);
+    console.log(`   Log level: DEBUG`);
+  }
+
   const options: LauncherOptions = {
     deerflowPath,
     logDir,
-    logLevel: parseLogLevel()
+    logLevel
   };
 
   const launcher = new Launcher(options);
@@ -97,10 +99,19 @@ async function main(): Promise<void> {
     } else {
       console.error('\nLaunch failed!');
       console.error(`Error: ${result.error}`);
+      if (DEBUG_MODE && result.error) {
+        console.error('\nDebug info:');
+        console.error(`  Status: ${result.status}`);
+        console.error(`  Duration: ${result.totalDuration}ms`);
+      }
       process.exit(1);
     }
   } catch (error) {
     console.error('\nUnexpected error:', error);
+    if (DEBUG_MODE && error instanceof Error) {
+      console.error('\nStack trace:');
+      console.error(error.stack);
+    }
     process.exit(1);
   }
 }

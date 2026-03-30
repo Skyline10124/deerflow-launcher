@@ -20,7 +20,7 @@ import {
   formatDuration
 } from './LaunchContext';
 import { getServiceDefinitions, SERVICE_START_ORDER } from '../config/services';
-import { LauncherException, createEnvError, createStartError } from '../utils/errors';
+import { LauncherException, createEnvError, createStartError, createConfigError } from '../utils/errors';
 
 export interface LauncherOptions {
   deerflowPath: string;
@@ -103,21 +103,17 @@ export class Launcher {
     this.logger.info('=== Phase 2: Configuration Initialization ===');
     
     if (!this.configInitializer.validateDeerFlowPath()) {
-      throw new LauncherException({
-        code: 'CFG_INVALID_PATH',
-        message: 'Invalid DeerFlow path',
-        suggestion: 'Verify DEERFLOW_PATH environment variable'
-      });
+      throw createConfigError('CFG_INVALID_PATH', this.context.deerflowPath);
     }
 
     const result = await this.configInitializer.initialize();
     
     if (!result.success) {
-      throw new LauncherException({
-        code: 'CFG_CREATE_FAILED',
-        message: 'Failed to initialize configuration files',
-        details: `Failed files: ${result.failed.join(', ')}`
-      });
+      throw createConfigError(
+        'CFG_CREATE_FAILED', 
+        this.context.deerflowPath,
+        `Failed files: ${result.failed.join(', ')}`
+      );
     }
     
     this.logger.info('');
