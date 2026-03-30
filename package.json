@@ -3,9 +3,13 @@
   "version": "0.2.0",
   "description": "DeerFlow Desktop Launcher - Service management and startup",
   "main": "dist/main.js",
+  "bin": {
+    "deerflow-launcher": "./dist/cli.js"
+  },
   "scripts": {
     "build": "tsc",
     "start": "ts-node src/main.ts",
+    "cli": "ts-node src/cli.ts",
     "dev": "ts-node-dev --respawn src/main.ts",
     "clean": "ts-node src/main.ts --clean",
     "lint": "eslint src/**/*.ts",

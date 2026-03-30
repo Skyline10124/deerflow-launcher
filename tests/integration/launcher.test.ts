@@ -47,6 +47,15 @@ describe('Integration Tests', () => {
         path.join(templateDir, 'extensions_config.example.json'),
         '{}\n'
       );
+      
+      const nginxDir = path.join(templateDir, 'docker', 'nginx');
+      if (!fs.existsSync(nginxDir)) {
+        fs.mkdirSync(nginxDir, { recursive: true });
+      }
+      fs.writeFileSync(
+        path.join(nginxDir, 'nginx.local.conf'),
+        '# nginx config\n'
+      );
     });
 
     afterEach(() => {
