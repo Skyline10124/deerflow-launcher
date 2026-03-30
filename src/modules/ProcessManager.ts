@@ -125,7 +125,7 @@ export class ProcessManager {
                          service.script.endsWith('.mjs');
     
     const isWindows = process.platform === 'win32';
-    const nullDevice = isWindows ? 'NUL' : '/dev/null';
+    const nullDevice = isWindows ? '\\\\.\\NUL' : '/dev/null';
     
     let script = service.script;
     let args = service.args || [];
@@ -136,7 +136,7 @@ export class ProcessManager {
     } else if (isWindows) {
       const wrapperPath = path.join(__dirname, '..', '..', 'scripts', 'wrapper.js');
       script = process.execPath;
-      args = [wrapperPath, service.script, ...(service.args || [])];
+      args = [wrapperPath, service.name, service.script, ...(service.args || [])];
       interpreter = undefined;
     } else {
       interpreter = 'none';
@@ -157,7 +157,7 @@ export class ProcessManager {
       out_file: nullDevice,
       error_file: nullDevice,
       merge_logs: true,
-      time: true,
+      time: isWindows && !isNodeScript ? false : true,
       env: service.env,
       ...(isWindows && !isNodeScript ? { 
         windowsHide: true,
