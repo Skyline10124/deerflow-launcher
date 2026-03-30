@@ -59,10 +59,33 @@ export class ProcessManager {
           }
         });
       });
+
+      await this.cleanupStaleProcesses();
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       this.logger.error(`Failed to connect to PM2: ${errorMsg}`);
       throw new Error(`PM2 connection failed: ${errorMsg}`);
+    }
+  }
+
+  private async cleanupStaleProcesses(): Promise<void> {
+    try {
+      const list = await this.listProcesses();
+      const serviceNames = ['langgraph', 'gateway', 'frontend', 'nginx'];
+      
+      for (const proc of list) {
+        if (serviceNames.includes(proc.name)) {
+          const logPath = proc.pm2_env?.pm_log_path || '';
+          if (logPath.includes('demo') || logPath.includes('launcher\\demo')) {
+            this.logger.debug(`Cleaning stale process: ${proc.name}`);
+            await new Promise<void>((resolve) => {
+              PM2.delete(proc.name, () => resolve());
+            });
+          }
+        }
+      }
+    } catch {
+      // Ignore cleanup errors
     }
   }
 
@@ -160,6 +183,8 @@ export class ProcessManager {
     };
 
     try {
+      await this.deleteExistingProcess(service.name);
+
       const config = this.buildPM2Config(service);
 
       const proc = await new Promise<any>((resolve, reject) => {
@@ -237,6 +262,27 @@ export class ProcessManager {
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       this.logger.error(`Failed to stop ${name}: ${errorMsg}`);
+    }
+  }
+
+  private async deleteExistingProcess(name: string): Promise<void> {
+    try {
+      const list = await this.listProcesses();
+      const existing = list.find((p) => p.name === name);
+      if (existing) {
+        this.logger.debug(`Deleting existing process: ${name}`);
+        await new Promise<void>((resolve, reject) => {
+          PM2.delete(name, (err: Error | null) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve();
+            }
+          });
+        });
+      }
+    } catch {
+      // Ignore errors - process may not exist
     }
   }
 
