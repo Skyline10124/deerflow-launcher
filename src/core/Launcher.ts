@@ -24,12 +24,17 @@ import {
 import { getServiceDefinitions, SERVICE_START_ORDER } from '../config/services';
 import { LauncherException, createEnvError, createStartError, createConfigError } from '../utils/errors';
 
+/** Launcher 配置选项 */
 export interface LauncherOptions {
   deerflowPath: string;
   logDir?: string;
   logLevel?: LogLevel;
 }
 
+/**
+ * DeerFlow 启动器
+ * 负责环境检查、配置初始化和服务启动的完整生命周期管理
+ */
 export class Launcher {
   private logger: Logger;
   private envChecker: EnvChecker;
@@ -59,6 +64,10 @@ export class Launcher {
     this.configWatcher = new ConfigWatcher(options.deerflowPath);
   }
 
+  /**
+   * 启动 DeerFlow
+   * 按顺序执行环境检查、配置初始化和服务启动
+   */
   async start(): Promise<LaunchResult> {
     this.logger.info('DeerFlow Launcher Demo v0.2.0');
     this.logger.info(`DeerFlow Path: ${this.context.deerflowPath}`);
@@ -95,6 +104,7 @@ export class Launcher {
     }
   }
 
+  /** 第一阶段: 检查环境依赖 */
   private async checkEnvironment(): Promise<void> {
     this.logger.info('=== Phase 1: Environment Check ===');
     
@@ -107,6 +117,7 @@ export class Launcher {
     this.logger.info('');
   }
 
+  /** 第二阶段: 初始化配置文件 */
   private async initializeConfig(): Promise<void> {
     this.logger.info('=== Phase 2: Configuration Initialization ===');
     
@@ -127,6 +138,7 @@ export class Launcher {
     this.logger.info('');
   }
 
+  /** 第三阶段: 启动所有服务 */
   private async startServices(): Promise<void> {
     this.logger.info('=== Phase 3: Service Startup ===');
     
@@ -177,6 +189,7 @@ export class Launcher {
     this.logger.info('');
   }
 
+  /** 停止 DeerFlow 并清理资源 */
   async stop(): Promise<void> {
     if (this.isStopping) {
       return;
@@ -191,6 +204,7 @@ export class Launcher {
     this.logger.info('DeerFlow stopped');
   }
 
+  /** 清理所有资源 (停止监控、断开连接、停止服务) */
   private async cleanup(): Promise<void> {
     if (this.isCleaningUp) {
       return;
@@ -218,6 +232,7 @@ export class Launcher {
     this.logger.info('Cleanup completed');
   }
 
+  /** 构建成功结果 */
   private buildSuccessResult(): LaunchResult {
     const duration = getElapsedSeconds(this.context);
     
@@ -232,6 +247,7 @@ export class Launcher {
     };
   }
 
+  /** 构建失败结果 */
   private buildFailureResult(error: unknown): LaunchResult {
     const duration = getElapsedSeconds(this.context);
     const errorMsg = error instanceof Error ? error.message : String(error);
@@ -245,10 +261,12 @@ export class Launcher {
     };
   }
 
+  /** 获取启动上下文 */
   getContext(): LaunchContext {
     return this.context;
   }
 
+  /** 获取指定服务的状态 */
   getServiceStatus(serviceName: ServiceName): ServiceInstance | undefined {
     return this.context.services.get(serviceName);
   }

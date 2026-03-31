@@ -2,17 +2,20 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Logger, getLogger } from './Logger';
 
+/** 配置变更事件 */
 export interface ConfigChange {
   file: string;
   event: 'change' | 'rename';
   timestamp: Date;
 }
 
+/** 监控配置选项 */
 export interface WatchConfig {
   debounceMs: number;
   files: string[];
 }
 
+/** 默认监控配置 */
 const DEFAULT_CONFIG: WatchConfig = {
   debounceMs: 1000,
   files: [
@@ -24,8 +27,13 @@ const DEFAULT_CONFIG: WatchConfig = {
   ]
 };
 
+/** 配置变更处理器类型 */
 export type ConfigChangeHandler = (change: ConfigChange) => void;
 
+/**
+ * 配置文件监控器
+ * 监控 DeerFlow 配置文件的变化并触发回调
+ */
 export class ConfigWatcher {
   private logger: Logger;
   private deerflowPath: string;
@@ -41,6 +49,7 @@ export class ConfigWatcher {
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
+  /** 启动配置文件监控 */
   start(): void {
     this.logger.info('Starting config watcher...');
 
@@ -49,6 +58,7 @@ export class ConfigWatcher {
     }
   }
 
+  /** 停止配置文件监控 */
   stop(): void {
     this.logger.info('Stopping config watcher...');
 
@@ -65,6 +75,7 @@ export class ConfigWatcher {
     this.debounceTimers.clear();
   }
 
+  /** 监控单个配置文件 */
   private watchFile(relativePath: string): void {
     const filePath = path.join(this.deerflowPath, relativePath);
 
@@ -91,6 +102,7 @@ export class ConfigWatcher {
     }
   }
 
+  /** 处理文件事件 (带防抖) */
   private handleFileEvent(relativePath: string, event: string): void {
     const existingTimer = this.debounceTimers.get(relativePath);
     if (existingTimer) {
@@ -105,6 +117,7 @@ export class ConfigWatcher {
     this.debounceTimers.set(relativePath, timer);
   }
 
+  /** 处理配置变更 (检测内容是否真正改变) */
   private processChange(relativePath: string, event: 'change' | 'rename'): void {
     const filePath = path.join(this.deerflowPath, relativePath);
 
@@ -143,10 +156,12 @@ export class ConfigWatcher {
     }
   }
 
+  /** 注册配置变更处理器 */
   onChange(handler: ConfigChangeHandler): void {
     this.handlers.push(handler);
   }
 
+  /** 移除配置变更处理器 */
   removeHandler(handler: ConfigChangeHandler): void {
     const index = this.handlers.indexOf(handler);
     if (index > -1) {
@@ -154,14 +169,17 @@ export class ConfigWatcher {
     }
   }
 
+  /** 获取正在监控的文件列表 */
   getWatchedFiles(): string[] {
     return Array.from(this.watchers.keys());
   }
 
+  /** 检查是否正在监控指定文件 */
   isWatching(file: string): boolean {
     return this.watchers.has(file);
   }
 
+  /** 添加文件到监控列表 */
   addFile(relativePath: string): boolean {
     if (this.watchers.has(relativePath)) {
       return false;
@@ -171,6 +189,7 @@ export class ConfigWatcher {
     return this.watchers.has(relativePath);
   }
 
+  /** 从监控列表移除文件 */
   removeFile(relativePath: string): boolean {
     const watcher = this.watchers.get(relativePath);
     if (watcher) {

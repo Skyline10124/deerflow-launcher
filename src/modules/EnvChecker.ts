@@ -2,6 +2,7 @@ import { execSync, spawnSync } from 'child_process';
 import { Logger, getLogger } from './Logger';
 import { EnvCheckResult, DependencyInfo, ErrorCodes } from '../types';
 
+/** 依赖项配置接口 */
 interface DependencyConfig {
   name: string;
   command: string;
@@ -11,6 +12,57 @@ interface DependencyConfig {
   versionErrorCode?: string;
 }
 
+/** 需要检查的依赖项配置列表 */
+const DEPENDENCY_CONFIGS: DependencyConfig[] = [
+  {
+    name: 'Python',
+    command: process.platform === 'win32' ? 'python --version' : 'python3 --version',
+    versionRegex: /Python (\d+\.\d+\.\d+)/,
+    minVersion: '3.12.0',
+    errorCode: ErrorCodes.ENV_PYTHON_MISSING,
+    versionErrorCode: ErrorCodes.ENV_PYTHON_VERSION
+  },
+  {
+    name: 'Node.js',
+    command: 'node --version',
+    versionRegex: /v?(\d+\.\d+\.\d+)/,
+    minVersion: '22.0.0',
+    errorCode: ErrorCodes.ENV_NODE_MISSING,
+    versionErrorCode: ErrorCodes.ENV_NODE_VERSION
+  },
+  {
+    name: 'uv',
+    command: 'uv --version',
+    versionRegex: /uv\s+(\d+\.\d+\.\d+)/,
+    errorCode: ErrorCodes.ENV_UV_MISSING
+  },
+  {
+    name: 'pnpm',
+    command: 'pnpm --version',
+    versionRegex: /(\d+\.\d+\.\d+)/,
+    errorCode: ErrorCodes.ENV_PNPM_MISSING
+  },
+  {
+    name: 'nginx',
+    command: process.platform === 'win32' ? 'nginx -v 2>&1' : 'nginx -v 2>&1',
+    versionRegex: /nginx\/(\d+\.\d+\.\d+)/,
+    errorCode: ErrorCodes.ENV_NGINX_MISSING
+  }
+];
+
+/** 依赖项安装指南映射 */
+const INSTALL_GUIDES: Record<string, string> = {
+  'Python': 'Python 3.12+: Install from https://www.python.org/downloads/',
+  'Node.js': 'Node.js 22+: Install from https://nodejs.org/',
+  'uv': 'uv: Install with "pip install uv" or "curl -LsSf https://astral.sh/uv/install.sh | sh"',
+  'pnpm': 'pnpm: Install with "npm install -g pnpm"',
+  'nginx': 'nginx: Install from https://nginx.org/en/download.html'
+};
+
+/**
+ * 环境检查器
+ * 检查系统是否安装了 DeerFlow 所需的依赖项
+ */
 export class EnvChecker {
   private logger: Logger;
 
@@ -18,11 +70,13 @@ export class EnvChecker {
     this.logger = getLogger('EnvChecker');
   }
 
+  /** 从命令输出中解析版本号 */
   private parseVersion(versionString: string): string {
     const match = versionString.match(/\d+\.\d+\.\d+|\d+\.\d+/);
     return match ? match[0] : '';
   }
 
+  /** 比较两个版本号，返回 1(v1>v2), -1(v1<v2), 0(相等) */
   private compareVersions(v1: string, v2: string): number {
     const parts1 = v1.split('.').map(Number);
     const parts2 = v2.split('.').map(Number);
@@ -36,6 +90,7 @@ export class EnvChecker {
     return 0;
   }
 
+  /** 执行 shell 命令并返回输出 */
   private runCommand(command: string): string {
     try {
       const result = spawnSync(command, [], {
@@ -50,6 +105,7 @@ export class EnvChecker {
     }
   }
 
+  /** 检查单个依赖项 */
   private checkDependency(config: DependencyConfig): { info?: DependencyInfo; error?: string } {
     try {
       this.logger.debug(`Checking ${config.name} at ${config.command}`);
@@ -94,45 +150,33 @@ export class EnvChecker {
     }
   }
 
+  /** 更新检查结果中的依赖信息 */
+  private updateResultWithInfo(result: EnvCheckResult, name: string, info: DependencyInfo): void {
+    switch (name) {
+      case 'Python':
+        result.python = info;
+        break;
+      case 'Node.js':
+        result.node = info;
+        break;
+      case 'uv':
+        result.uv = info;
+        break;
+      case 'pnpm':
+        result.pnpm = info;
+        break;
+      case 'nginx':
+        result.nginx = info;
+        break;
+    }
+  }
+
+  /**
+   * 执行环境依赖检查
+   * @returns 检查结果，包含所有依赖项的状态
+   */
   async check(): Promise<EnvCheckResult> {
     this.logger.info('Checking environment dependencies...');
-
-    const dependencies: DependencyConfig[] = [
-      {
-        name: 'Python',
-        command: process.platform === 'win32' ? 'python --version' : 'python3 --version',
-        versionRegex: /Python (\d+\.\d+\.\d+)/,
-        minVersion: '3.12.0',
-        errorCode: ErrorCodes.ENV_PYTHON_MISSING,
-        versionErrorCode: ErrorCodes.ENV_PYTHON_VERSION
-      },
-      {
-        name: 'Node.js',
-        command: 'node --version',
-        versionRegex: /v?(\d+\.\d+\.\d+)/,
-        minVersion: '22.0.0',
-        errorCode: ErrorCodes.ENV_NODE_MISSING,
-        versionErrorCode: ErrorCodes.ENV_NODE_VERSION
-      },
-      {
-        name: 'uv',
-        command: 'uv --version',
-        versionRegex: /uv\s+(\d+\.\d+\.\d+)/,
-        errorCode: ErrorCodes.ENV_UV_MISSING
-      },
-      {
-        name: 'pnpm',
-        command: 'pnpm --version',
-        versionRegex: /(\d+\.\d+\.\d+)/,
-        errorCode: ErrorCodes.ENV_PNPM_MISSING
-      },
-      {
-        name: 'nginx',
-        command: process.platform === 'win32' ? 'nginx -v 2>&1' : 'nginx -v 2>&1',
-        versionRegex: /nginx\/(\d+\.\d+\.\d+)/,
-        errorCode: ErrorCodes.ENV_NGINX_MISSING
-      }
-    ];
 
     const result: EnvCheckResult = {
       success: true,
@@ -140,7 +184,7 @@ export class EnvChecker {
       errors: []
     };
 
-    for (const dep of dependencies) {
+    for (const dep of DEPENDENCY_CONFIGS) {
       const checkResult = this.checkDependency(dep);
       
       if (checkResult.error) {
@@ -148,23 +192,7 @@ export class EnvChecker {
         result.missing.push(dep.name);
         result.errors.push(`${dep.name}: ${checkResult.error}`);
       } else if (checkResult.info) {
-        switch (dep.name) {
-          case 'Python':
-            result.python = checkResult.info;
-            break;
-          case 'Node.js':
-            result.node = checkResult.info;
-            break;
-          case 'uv':
-            result.uv = checkResult.info;
-            break;
-          case 'pnpm':
-            result.pnpm = checkResult.info;
-            break;
-          case 'nginx':
-            result.nginx = checkResult.info;
-            break;
-        }
+        this.updateResultWithInfo(result, dep.name, checkResult.info);
       }
     }
 
@@ -178,26 +206,14 @@ export class EnvChecker {
     return result;
   }
 
+  /** 打印缺失依赖项的安装指南 */
   private printInstallGuide(missing: string[]): void {
     this.logger.info('\n=== Installation Guide ===');
     
     for (const dep of missing) {
-      switch (dep) {
-        case 'Python':
-          this.logger.info('Python 3.12+: Install from https://www.python.org/downloads/');
-          break;
-        case 'Node.js':
-          this.logger.info('Node.js 22+: Install from https://nodejs.org/');
-          break;
-        case 'uv':
-          this.logger.info('uv: Install with "pip install uv" or "curl -LsSf https://astral.sh/uv/install.sh | sh"');
-          break;
-        case 'pnpm':
-          this.logger.info('pnpm: Install with "npm install -g pnpm"');
-          break;
-        case 'nginx':
-          this.logger.info('nginx: Install from https://nginx.org/en/download.html');
-          break;
+      const guide = INSTALL_GUIDES[dep];
+      if (guide) {
+        this.logger.info(guide);
       }
     }
     

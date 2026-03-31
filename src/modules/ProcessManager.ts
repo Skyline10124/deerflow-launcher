@@ -13,6 +13,10 @@ import {
 
 const MANAGED_SERVICE_NAMES = Object.values(ServiceName);
 
+/**
+ * PM2 进程配置接口
+ * 定义 PM2 启动进程所需的配置项
+ */
 export interface PM2ProcessConfig {
   name: string;
   script: string;
@@ -32,6 +36,10 @@ export interface PM2ProcessConfig {
   env?: Record<string, string>;
 }
 
+/**
+ * 进程管理器
+ * 使用 PM2 管理 DeerFlow 各服务的生命周期
+ */
 export class ProcessManager {
   private logger: Logger;
   private healthChecker: HealthChecker;
@@ -44,6 +52,7 @@ export class ProcessManager {
     this.logDir = logDir;
   }
 
+  /** 连接到 PM2 守护进程 */
   async connect(): Promise<void> {
     if (this.connected) {
       return;
@@ -70,23 +79,36 @@ export class ProcessManager {
     }
   }
 
+  /** 判断进程是否为过期进程 (日志路径不匹配) */
+  private isStaleProcess(proc: any, normalizedLogDir: string): boolean {
+    if (!MANAGED_SERVICE_NAMES.includes(proc.name)) {
+      return false;
+    }
+    const procLogPath = proc.pm2_env?.pm_log_path || proc.pm2_env?.log_file || '';
+    if (!procLogPath) {
+      return false;
+    }
+    const normalizedProcLogPath = path.resolve(procLogPath).toLowerCase();
+    return !normalizedProcLogPath.startsWith(normalizedLogDir);
+  }
+
+  /** 删除指定的 PM2 进程 */
+  private async deleteProcess(name: string): Promise<void> {
+    return new Promise<void>((resolve) => {
+      PM2.delete(name, () => resolve());
+    });
+  }
+
+  /** 清理不属于当前 launcher 的过期进程 */
   private async cleanupStaleProcesses(): Promise<void> {
     try {
       const list = await this.listProcesses();
       const normalizedLogDir = path.resolve(this.logDir).toLowerCase();
       
       for (const proc of list) {
-        if (MANAGED_SERVICE_NAMES.includes(proc.name)) {
-          const procLogPath = proc.pm2_env?.pm_log_path || proc.pm2_env?.log_file || '';
-          if (procLogPath) {
-            const normalizedProcLogPath = path.resolve(procLogPath).toLowerCase();
-            if (!normalizedProcLogPath.startsWith(normalizedLogDir)) {
-              this.logger.debug(`Cleaning stale process (log path mismatch): ${proc.name}`);
-              await new Promise<void>((resolve) => {
-                PM2.delete(proc.name, () => resolve());
-              });
-            }
-          }
+        if (this.isStaleProcess(proc, normalizedLogDir)) {
+          this.logger.debug(`Cleaning stale process (log path mismatch): ${proc.name}`);
+          await this.deleteProcess(proc.name);
         }
       }
     } catch {
@@ -94,6 +116,7 @@ export class ProcessManager {
     }
   }
 
+  /** 断开与 PM2 守护进程的连接 */
   async disconnect(): Promise<void> {
     if (!this.connected) {
       return;
@@ -111,6 +134,7 @@ export class ProcessManager {
     });
   }
 
+  /** 强制断开 PM2 连接 (忽略错误) */
   forceDisconnect(): void {
     if (this.connected) {
       try {
@@ -124,6 +148,7 @@ export class ProcessManager {
     return this.connected;
   }
 
+  /** 构建 PM2 进程配置 */
   private buildPM2Config(service: ServiceDefinition): PM2ProcessConfig {
     if (!fs.existsSync(this.logDir)) {
       fs.mkdirSync(this.logDir, { recursive: true });
@@ -177,6 +202,10 @@ export class ProcessManager {
     return config;
   }
 
+  /**
+   * 启动服务 (阻塞模式)
+   * 等待健康检查通过后返回
+   */
   async startService(
     service: ServiceDefinition,
     dependencies: Map<ServiceName, ServiceInstance>
@@ -246,6 +275,10 @@ export class ProcessManager {
     return instance;
   }
 
+  /**
+   * 启动服务 (分离模式)
+   * 不等待健康检查，立即返回
+   */
   async startServiceDetached(
     service: ServiceDefinition,
     dependencies: Map<ServiceName, ServiceInstance>
@@ -294,6 +327,7 @@ export class ProcessManager {
     return instance;
   }
 
+  /** 停止指定服务 */
   async stopService(name: ServiceName): Promise<void> {
     this.logger.info(`Stopping ${name} service...`);
 
@@ -341,6 +375,7 @@ export class ProcessManager {
     }
   }
 
+  /** 删除已存在的同名进程 */
   private async deleteExistingProcess(name: string): Promise<void> {
     try {
       const list = await this.listProcesses();
@@ -364,6 +399,7 @@ export class ProcessManager {
     }
   }
 
+  /** 终止所有托管的服务进程 */
   async killAllManagedProcesses(): Promise<void> {
     this.logger.info('Killing all managed processes...');
     try {
@@ -381,6 +417,7 @@ export class ProcessManager {
     }
   }
 
+  /** 按顺序停止所有服务 */
   async stopAll(services: Map<ServiceName, ServiceInstance>): Promise<void> {
     this.logger.info('Stopping all services...');
 
@@ -395,6 +432,7 @@ export class ProcessManager {
     }
   }
 
+  /** 获取所有 PM2 进程列表 */
   async listProcesses(): Promise<any[]> {
     if (!this.connected) {
       return [];

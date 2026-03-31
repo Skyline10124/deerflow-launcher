@@ -20,6 +20,13 @@ import { EnvDoctor } from '../modules/EnvDoctor';
 import { SERVICE_START_ORDER, SERVICE_PORTS, getServiceDefinitions } from '../config/services';
 import { readFileSync, readdirSync, unlinkSync, existsSync } from 'fs';
 
+/**
+ * 查找 DeerFlow 项目根目录
+ * 按以下顺序查找:
+ * 1. DEERFLOW_PATH 环境变量
+ * 2. 当前目录及其父目录 (包含 backend 和 frontend 文件夹)
+ * 3. 当前工作目录的父目录
+ */
 function findDeerFlowRoot(): string {
   const envPath = process.env.DEERFLOW_PATH;
   if (envPath && existsSync(envPath)) {
@@ -45,16 +52,22 @@ function findDeerFlowRoot(): string {
   return process.cwd();
 }
 
+/** 获取 DeerFlow 项目根目录路径 */
 function getDeerFlowPath(): string {
   return findDeerFlowRoot();
 }
 
+/** 获取日志目录路径 (launcher/logs) */
 function getLogDir(): string {
   const cliDir = __dirname;
   const launcherDir = dirname(dirname(dirname(cliDir)));
   return join(launcherDir, 'logs');
 }
 
+/**
+ * 日志服务适配器
+ * 实现 ILogService 接口，提供日志读取、监听和清理功能
+ */
 class LogServiceAdapter implements ILogService {
   private logManager: LogManager;
 
@@ -145,6 +158,10 @@ class LogServiceAdapter implements ILogService {
   }
 }
 
+/**
+ * 配置服务适配器
+ * 实现 IConfigService 接口，提供配置读取和验证功能
+ */
 class ConfigServiceAdapter implements IConfigService {
   async get(key: string): Promise<unknown> {
     switch (key) {
@@ -182,6 +199,10 @@ class ConfigServiceAdapter implements IConfigService {
   async init(): Promise<void> {}
 }
 
+/**
+ * 服务管理器适配器
+ * 实现 IServiceManager 接口，整合进程管理、日志和配置服务
+ */
 class ServiceManagerAdapter implements IServiceManager {
   private processManager: ProcessManager;
   private processMonitor: ProcessMonitor;
@@ -207,7 +228,12 @@ class ServiceManagerAdapter implements IServiceManager {
     timeout?: number;
     langsmith?: boolean;
   }): Promise<void> {
-    await this.processManager.connect();
+    try {
+      await this.processManager.connect();
+    } catch (error) {
+      this.logger.error(`Failed to connect to process manager: ${error}`);
+      throw error;
+    }
     
     const services = options?.only 
       ? SERVICE_START_ORDER.filter((s): s is ServiceName => options.only!.includes(s))
@@ -249,7 +275,12 @@ class ServiceManagerAdapter implements IServiceManager {
     force?: boolean;
     timeout?: number;
   }): Promise<void> {
-    await this.processManager.connect();
+    try {
+      await this.processManager.connect();
+    } catch (error) {
+      this.logger.error(`Failed to connect to process manager: ${error}`);
+      throw error;
+    }
     
     const services = options?.only 
       ? SERVICE_START_ORDER.filter((s): s is ServiceName => options.only!.includes(s))
@@ -273,7 +304,12 @@ class ServiceManagerAdapter implements IServiceManager {
   }
 
   async getStatus(service?: ServiceName): Promise<ServiceStatusInfo | ServiceStatusInfo[]> {
-    await this.processMonitor.connect();
+    try {
+      await this.processMonitor.connect();
+    } catch (error) {
+      this.logger.error(`Failed to connect to process monitor: ${error}`);
+      throw error;
+    }
     
     const statuses = await this.processMonitor.getStatus();
     
@@ -294,7 +330,12 @@ class ServiceManagerAdapter implements IServiceManager {
   }
 
   async getAllStatus(): Promise<ServiceStatusInfo[]> {
-    await this.processMonitor.connect();
+    try {
+      await this.processMonitor.connect();
+    } catch (error) {
+      this.logger.error(`Failed to connect to process monitor: ${error}`);
+      throw error;
+    }
     const statuses = await this.processMonitor.getStatus();
     
     try {
@@ -312,41 +353,42 @@ class ServiceManagerAdapter implements IServiceManager {
     return this.configService;
   }
 
+  /** 将 PM2 状态字符串映射为 ServiceStatusInfo 状态 */
+  private mapStatus(status: string): ServiceStatusInfo['status'] {
+    const statusMap: Record<string, ServiceStatusInfo['status']> = {
+      'stopped': 'offline',
+      'unknown': 'offline',
+      'launching': 'launching',
+      'errored': 'errored',
+      'online': 'online'
+    };
+    return statusMap[status] || 'offline';
+  }
+
+  /** 将毫秒格式化为可读的运行时间字符串 */
+  private formatUptime(uptimeMs: number): string | undefined {
+    if (!uptimeMs) return undefined;
+    
+    const totalSeconds = Math.floor(uptimeMs / 1000);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (days > 0) return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+    if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+    if (minutes > 0) return `${minutes}m ${seconds}s`;
+    return `${seconds}s`;
+  }
+
   private toStatusInfo(status: ProcessStatus): ServiceStatusInfo {
-    const mappedStatus: ServiceStatusInfo['status'] = 
-      status.status === 'stopped' || status.status === 'unknown' ? 'offline' 
-      : status.status === 'launching' ? 'launching'
-      : status.status === 'errored' ? 'errored'
-      : status.status === 'online' ? 'online'
-      : 'offline';
-    
-    const uptimeMs = status.uptime;
-    let uptimeStr: string | undefined;
-    if (uptimeMs) {
-      const totalSeconds = Math.floor(uptimeMs / 1000);
-      const days = Math.floor(totalSeconds / 86400);
-      const hours = Math.floor((totalSeconds % 86400) / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      const seconds = totalSeconds % 60;
-      
-      if (days > 0) {
-        uptimeStr = `${days}d ${hours}h ${minutes}m ${seconds}s`;
-      } else if (hours > 0) {
-        uptimeStr = `${hours}h ${minutes}m ${seconds}s`;
-      } else if (minutes > 0) {
-        uptimeStr = `${minutes}m ${seconds}s`;
-      } else {
-        uptimeStr = `${seconds}s`;
-      }
-    }
-    
     return {
       name: status.name as ServiceName,
-      status: mappedStatus,
+      status: this.mapStatus(status.status),
       cpu: `${status.cpu}%`,
       memory: `${Math.round(status.memory / 1024 / 1024)} MB`,
       pid: status.pid,
-      uptime: uptimeStr,
+      uptime: this.formatUptime(status.uptime),
       restartCount: status.restarts,
       port: status.port
     };
