@@ -16,6 +16,7 @@ export interface StartOptions {
   watch?: boolean;
   detached?: boolean;
   timeout?: number;
+  langsmith?: boolean;
 }
 
 export interface StopOptions {
@@ -31,7 +32,11 @@ export interface ILogService {
     level?: string;
   }): Promise<string[]>;
   
+  watchLogs(service: ServiceName | 'launcher', callback: (line: string) => void): () => void;
+  
   clearLogs(service: ServiceName | 'launcher'): Promise<void>;
+  
+  clearAllLogs(): Promise<void>;
   
   getLogFiles(): Promise<string[]>;
 }

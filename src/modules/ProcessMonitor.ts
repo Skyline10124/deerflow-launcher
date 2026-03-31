@@ -1,11 +1,13 @@
 import PM2 from 'pm2';
 import { execSync } from 'child_process';
+import Table from 'cli-table3';
+import chalk from 'chalk';
 import { Logger, getLogger } from './Logger';
 import { ServiceName, ServiceStatus } from '../types';
 
 export interface ProcessStatus {
   name: string;
-  status: 'online' | 'stopped' | 'errored' | 'launching' | 'unknown';
+  status: 'online' | 'offline' | 'stopped' | 'errored' | 'launching' | 'stopping' | 'unknown';
   cpu: number;
   memory: number;
   restarts: number;
@@ -29,6 +31,115 @@ const DEFAULT_CONFIG: MonitorConfig = {
   baseDelay: 1000,
   maxDelay: 30000
 };
+
+export function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(0))} ${sizes[i]}`;
+}
+
+export function formatUptime(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (days > 0) return `${days}d ${hours % 24}h ${minutes % 60}m ${seconds % 60}s`;
+  if (hours > 0) return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+  if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+  return `${seconds}s`;
+}
+
+export function formatStatus(status: string): string {
+  const colors: Record<string, (s: string) => string> = {
+    online: chalk.green,
+    offline: chalk.gray,
+    stopped: chalk.gray,
+    stopping: chalk.yellow,
+    launching: chalk.yellow,
+    errored: chalk.red
+  };
+  return (colors[status] || chalk.white)(status);
+}
+
+export function getStatusIcon(status: string): string {
+  const icons: Record<string, string> = {
+    online: chalk.green('●'),
+    offline: chalk.gray('○'),
+    launching: chalk.yellow('●'),
+    stopping: chalk.yellow('●'),
+    errored: chalk.red('●'),
+    stopped: chalk.gray('○'),
+    unknown: chalk.gray('○')
+  };
+  return icons[status] || chalk.gray('○');
+}
+
+const ALL_SERVICES = ['langgraph', 'gateway', 'frontend', 'nginx'];
+
+export function formatStatusTable(statuses: ProcessStatus[]): string {
+  const table = new Table({
+    head: ['Service', 'Status', 'CPU', 'Memory', 'PID', 'Uptime', 'Restarts'],
+    style: { 
+      head: ['cyan', 'bold'],
+      border: ['gray']
+    },
+    colWidths: [12, 14, 8, 12, 8, 18, 10]
+  });
+
+  const statusMap = new Map(statuses.map(s => [s.name, s]));
+
+  for (const serviceName of ALL_SERVICES) {
+    const s = statusMap.get(serviceName);
+    if (s) {
+      const icon = getStatusIcon(s.status);
+      table.push([
+        chalk.bold(s.name),
+        `${icon} ${formatStatus(s.status)}`,
+        `${s.cpu}%`,
+        formatBytes(s.memory),
+        s.pid?.toString() || '-',
+        formatUptime(s.uptime),
+        s.restarts.toString()
+      ]);
+    } else {
+      const icon = getStatusIcon('offline');
+      table.push([
+        chalk.bold(serviceName),
+        `${icon} ${formatStatus('offline')}`,
+        '0%',
+        '0 B',
+        '-',
+        '-',
+        '0'
+      ]);
+    }
+  }
+
+  return table.toString();
+}
+
+export function formatSimpleList(statuses: ProcessStatus[]): string {
+  const lines: string[] = [];
+  
+  for (const s of statuses) {
+    const statusIcon = s.status === 'online' ? chalk.green('●')
+      : s.status === 'stopped' || s.status === 'unknown' ? chalk.gray('○')
+      : s.status === 'errored' ? chalk.red('●')
+      : chalk.yellow('●');
+    
+    lines.push(
+      `${statusIcon} ${chalk.bold(s.name.padEnd(12))} ` +
+      `${formatStatus(s.status).padEnd(10)} ` +
+      `${chalk.gray(formatBytes(s.memory))} ` +
+      `${chalk.gray(formatUptime(s.uptime))}`
+    );
+  }
+  
+  return lines.join('\n');
+}
 
 export class ProcessMonitor {
   private logger: Logger;
@@ -189,17 +300,20 @@ export class ProcessMonitor {
 
     const processes = await this.listProcesses();
     
+    let winMetricsMap: Map<number, { cpu: number; memory: number }> = new Map();
+    if (process.platform === 'win32') {
+      winMetricsMap = this.getAllWindowsProcessMetrics();
+    }
+    
     return processes.map(proc => {
       const pid = proc.pid;
       let cpu = proc.monit?.cpu || 0;
       let memory = proc.monit?.memory || 0;
       
-      if (process.platform === 'win32' && pid) {
-        const winMetrics = this.getWindowsProcessMetrics(pid);
-        if (winMetrics) {
-          cpu = winMetrics.cpu;
-          memory = winMetrics.memory;
-        }
+      if (pid && winMetricsMap.has(pid)) {
+        const winMetrics = winMetricsMap.get(pid)!;
+        cpu = winMetrics.cpu;
+        memory = winMetrics.memory;
       }
       
       return {
@@ -215,38 +329,40 @@ export class ProcessMonitor {
     });
   }
 
-  private getWindowsProcessMetrics(pid: number): { cpu: number; memory: number } | null {
+  private getAllWindowsProcessMetrics(): Map<number, { cpu: number; memory: number }> {
+    const result = new Map<number, { cpu: number; memory: number }>();
+    
     try {
-      const script = `$ErrorActionPreference='SilentlyContinue';$p=Get-Process -Id ${pid};if($p){$mem=$p.WorkingSet64;$perf=Get-CimInstance Win32_PerfFormattedData_PerfProc_Process|Where-Object{$_.IDProcess -eq ${pid}};$cpu=if($perf){$perf.PercentProcessorTime}else{0};@{CPU=[math]::Round($cpu,1);Memory=$mem}|ConvertTo-Json -Compress}`;
-      const encodedScript = Buffer.from(script, 'utf16le').toString('base64');
-      const output = execSync(
-        `pwsh -NoProfile -EncodedCommand ${encodedScript}`,
-        { encoding: 'utf-8', timeout: 5000, windowsHide: true }
+      const cpuOutput = execSync(
+        'wmic path Win32_PerfFormattedData_PerfProc_Process get IDProcess,PercentProcessorTime /value',
+        { encoding: 'utf-8', timeout: 3000, windowsHide: true }
       );
       
-      const data = JSON.parse(output.trim());
-      if (data) {
-        return { cpu: Math.round(data.CPU || 0), memory: data.Memory || 0 };
+      const memOutput = execSync(
+        'wmic process get ProcessId,WorkingSetSize /value',
+        { encoding: 'utf-8', timeout: 3000, windowsHide: true }
+      );
+      
+      const cpuMap = new Map<number, number>();
+      const cpuRegex = /IDProcess=(\d+)\s+PercentProcessorTime=(\d+)/g;
+      let cpuMatch;
+      while ((cpuMatch = cpuRegex.exec(cpuOutput)) !== null) {
+        cpuMap.set(parseInt(cpuMatch[1], 10), parseInt(cpuMatch[2], 10));
+      }
+      
+      const memRegex = /ProcessId=(\d+)\s+WorkingSetSize=(\d+)/g;
+      let memMatch;
+      while ((memMatch = memRegex.exec(memOutput)) !== null) {
+        const pid = parseInt(memMatch[1], 10);
+        const memory = parseInt(memMatch[2], 10);
+        const cpu = cpuMap.get(pid) || 0;
+        result.set(pid, { cpu, memory });
       }
     } catch {
-      // Fallback to tasklist for memory only
-      try {
-        const output = execSync(
-          `tasklist /fi "PID eq ${pid}" /fo csv /nh`,
-          { encoding: 'utf-8', timeout: 3000, windowsHide: true }
-        );
-        
-        const match = output.match(/"[^"]+","(\d+)","[^"]*","[^"]*","([\d,]+)\s*K"/i);
-        if (match) {
-          const memoryKB = parseInt(match[2].replace(/,/g, ''), 10);
-          const memory = memoryKB * 1024;
-          return { cpu: 0, memory };
-        }
-      } catch {
-        // Ignore errors
-      }
+      // Ignore errors
     }
-    return null;
+    
+    return result;
   }
 
   private mapStatus(pm2Status?: string): ProcessStatus['status'] {
@@ -262,47 +378,6 @@ export class ProcessMonitor {
       default:
         return 'unknown';
     }
-  }
-
-  formatStatusTable(statuses: ProcessStatus[]): string {
-    const lines: string[] = [];
-    
-    lines.push('┌────────────┬──────────┬───────┬─────────┬──────────┬──────────┐');
-    lines.push('│ Service    │ Status   │ CPU   │ Memory  │ Restarts │ Uptime   │');
-    lines.push('├────────────┼──────────┼───────┼─────────┼──────────┼──────────┤');
-    
-    for (const s of statuses) {
-      const status = s.status.padEnd(8);
-      const cpu = `${s.cpu}%`.padStart(5);
-      const memory = this.formatMemory(s.memory).padStart(7);
-      const restarts = String(s.restarts).padStart(8);
-      const uptime = this.formatUptime(s.uptime).padStart(8);
-      
-      lines.push(`│ ${s.name.padEnd(10)} │ ${status} │ ${cpu} │ ${memory} │ ${restarts} │ ${uptime} │`);
-    }
-    
-    lines.push('└────────────┴──────────┴───────┴─────────┴──────────┴──────────┘');
-    
-    return lines.join('\n');
-  }
-
-  private formatMemory(bytes: number): string {
-    if (bytes < 1024) return `${bytes}B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}KB`;
-    if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(0)}MB`;
-    return `${(bytes / 1024 / 1024 / 1024).toFixed(1)}GB`;
-  }
-
-  private formatUptime(ms: number): string {
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-
-    if (days > 0) return `${days}d ${hours % 24}h`;
-    if (hours > 0) return `${hours}h ${minutes % 60}m`;
-    if (minutes > 0) return `${minutes}m`;
-    return `${seconds}s`;
   }
 
   getMetrics(): { restartAttempts: Map<string, number>; isMonitoring: boolean } {

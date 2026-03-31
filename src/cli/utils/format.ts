@@ -33,27 +33,14 @@ export function formatLogLevel(level: string): string {
 
 export function formatRelativeTime(date: Date): string {
   const diff = Date.now() - date.getTime();
-  const seconds = Math.floor(diff / 1000);
+  const totalSeconds = Math.floor(diff / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
   
-  if (seconds < 60) return `${seconds}s ago`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  return `${Math.floor(seconds / 3600)}h ago`;
-}
-
-export function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
-}
-
-export function formatUptime(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  return `${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s ago`;
+  if (minutes > 0) return `${minutes}m ${seconds}s ago`;
+  return `${seconds}s ago`;
 }
 
 export const StatusColors = {
@@ -65,25 +52,3 @@ export const StatusColors = {
   highlight: chalk.cyan,
   bold: chalk.bold
 } as const;
-
-export function formatStatus(status: string): string {
-  const colors: Record<string, (s: string) => string> = {
-    online: chalk.green,
-    offline: chalk.gray,
-    stopping: chalk.yellow,
-    launching: chalk.yellow,
-    errored: chalk.red
-  };
-  return (colors[status] || chalk.white)(status);
-}
-
-export function getStatusIcon(status: string): string {
-  const icons: Record<string, string> = {
-    online: '🟢',
-    offline: '⚪',
-    launching: '🟡',
-    stopping: '🟡',
-    errored: '🔴'
-  };
-  return icons[status] || '⚪';
-}

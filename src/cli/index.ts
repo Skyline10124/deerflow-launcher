@@ -1,5 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
+import * as fs from 'fs';
+import { dirname, join, resolve } from 'path';
 import {
   registerServiceCommands,
   registerLogsCommands,
@@ -8,8 +10,8 @@ import {
 } from './commands';
 import { CLIError, ErrorCode } from './utils/errors';
 import type { IServiceManager, ServiceStatusInfo, ILogService, IConfigService } from '../core/interfaces/IServiceManager';
-import type { ServiceName, ServiceInstance } from '../types';
-import { ServiceStatus } from '../types';
+import type { ServiceInstance } from '../types';
+import { ServiceStatus, ServiceName } from '../types';
 import { ProcessManager } from '../modules/ProcessManager';
 import { ProcessMonitor, ProcessStatus } from '../modules/ProcessMonitor';
 import { LogManager } from '../modules/LogManager';
@@ -17,7 +19,6 @@ import { Logger, getLogger, setDefaultLogger } from '../modules/Logger';
 import { EnvDoctor } from '../modules/EnvDoctor';
 import { SERVICE_START_ORDER, SERVICE_PORTS, getServiceDefinitions } from '../config/services';
 import { readFileSync, readdirSync, unlinkSync, existsSync } from 'fs';
-import { join, dirname, resolve } from 'path';
 
 function findDeerFlowRoot(): string {
   const envPath = process.env.DEERFLOW_PATH;
@@ -49,7 +50,9 @@ function getDeerFlowPath(): string {
 }
 
 function getLogDir(): string {
-  return join(getDeerFlowPath(), 'logs');
+  const cliDir = __dirname;
+  const launcherDir = dirname(dirname(dirname(cliDir)));
+  return join(launcherDir, 'logs');
 }
 
 class LogServiceAdapter implements ILogService {
@@ -68,7 +71,7 @@ class LogServiceAdapter implements ILogService {
     const logFile = this.logManager.getLogFilePath(service);
     
     try {
-      const content = readFileSync(logFile, 'utf-8');
+      const content = fs.readFileSync(logFile, 'utf-8');
       const allLines = content.split('\n').filter(l => l.trim());
       
       if (options?.level) {
@@ -84,11 +87,56 @@ class LogServiceAdapter implements ILogService {
     }
   }
 
+  watchLogs(service: ServiceName | 'launcher', callback: (line: string) => void): () => void {
+    const logFile = this.logManager.getLogFilePath(service);
+    
+    if (!fs.existsSync(logFile)) {
+      return () => {};
+    }
+
+    let lastSize = fs.statSync(logFile).size;
+    let lastLineCount = fs.readFileSync(logFile, 'utf-8').split('\n').filter(l => l.trim()).length;
+
+    const timer = setInterval(() => {
+      try {
+        if (!fs.existsSync(logFile)) return;
+        
+        const stats = fs.statSync(logFile);
+        if (stats.size !== lastSize) {
+          const content = fs.readFileSync(logFile, 'utf-8');
+          const lines = content.split('\n').filter(l => l.trim());
+          
+          for (let i = lastLineCount; i < lines.length; i++) {
+            callback(lines[i]);
+          }
+          
+          lastLineCount = lines.length;
+          lastSize = stats.size;
+        }
+      } catch {}
+    }, 200);
+
+    return () => clearInterval(timer);
+  }
+
   async clearLogs(service: ServiceName | 'launcher'): Promise<void> {
     const logFile = this.logManager.getLogFilePath(service);
     try {
-      unlinkSync(logFile);
+      fs.writeFileSync(logFile, '');
     } catch {}
+  }
+
+  async clearAllLogs(): Promise<void> {
+    const services: (ServiceName | 'launcher')[] = [
+      'launcher',
+      ServiceName.LANGGRAPH,
+      ServiceName.GATEWAY,
+      ServiceName.FRONTEND,
+      ServiceName.NGINX
+    ];
+    for (const service of services) {
+      await this.clearLogs(service);
+    }
   }
 
   async getLogFiles(): Promise<string[]> {
@@ -157,6 +205,7 @@ class ServiceManagerAdapter implements IServiceManager {
     watch?: boolean;
     detached?: boolean;
     timeout?: number;
+    langsmith?: boolean;
   }): Promise<void> {
     await this.processManager.connect();
     
@@ -164,7 +213,7 @@ class ServiceManagerAdapter implements IServiceManager {
       ? SERVICE_START_ORDER.filter((s): s is ServiceName => options.only!.includes(s))
       : SERVICE_START_ORDER;
 
-    const serviceDefs = getServiceDefinitions(getDeerFlowPath());
+    const serviceDefs = getServiceDefinitions(getDeerFlowPath(), { langsmith: options?.langsmith });
     const dependencies = new Map<ServiceName, ServiceInstance>();
     
     for (const name of services) {
@@ -271,13 +320,33 @@ class ServiceManagerAdapter implements IServiceManager {
       : status.status === 'online' ? 'online'
       : 'offline';
     
+    const uptimeMs = status.uptime;
+    let uptimeStr: string | undefined;
+    if (uptimeMs) {
+      const totalSeconds = Math.floor(uptimeMs / 1000);
+      const days = Math.floor(totalSeconds / 86400);
+      const hours = Math.floor((totalSeconds % 86400) / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      
+      if (days > 0) {
+        uptimeStr = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+      } else if (hours > 0) {
+        uptimeStr = `${hours}h ${minutes}m ${seconds}s`;
+      } else if (minutes > 0) {
+        uptimeStr = `${minutes}m ${seconds}s`;
+      } else {
+        uptimeStr = `${seconds}s`;
+      }
+    }
+    
     return {
       name: status.name as ServiceName,
       status: mappedStatus,
       cpu: `${status.cpu}%`,
       memory: `${Math.round(status.memory / 1024 / 1024)} MB`,
       pid: status.pid,
-      uptime: status.uptime ? `${Math.floor(status.uptime / 60)}m` : undefined,
+      uptime: uptimeStr,
       restartCount: status.restarts,
       port: status.port
     };
@@ -290,7 +359,7 @@ export async function createCLI(): Promise<Command> {
   program
     .name('deerflow')
     .description('DeerFlow Desktop Launcher CLI')
-    .version('0.3.0');
+    .version('0.3.0', '-v, --version');
 
   program.exitOverride();
 
@@ -316,64 +385,6 @@ export async function createCLI(): Promise<Command> {
   registerLogsCommands(program, services);
   registerConfigCommands(program, services);
   registerDoctorCommands(program, services);
-
-  program
-    .command('start [services...]')
-    .description('Start DeerFlow services (shortcut)')
-    .option('-w, --watch', 'Watch configuration files', false)
-    .option('-d, --detach', 'Run in background', false)
-    .action(async (serviceNames, options) => {
-      const spinner = require('ora')({ text: 'Starting services...', spinner: 'dots' }).start();
-      try {
-        await services.start({
-          only: serviceNames.length > 0 ? serviceNames : undefined,
-          watch: options.watch,
-          detached: options.detach
-        });
-        spinner.succeed(chalk.green('Services started'));
-        const statuses = await services.getAllStatus();
-        console.log('\n' + require('./components/ServiceTable').formatServiceTable(statuses));
-      } catch (error) {
-        spinner.fail();
-        throw error;
-      }
-    });
-
-  program
-    .command('stop [services...]')
-    .description('Stop DeerFlow services (shortcut)')
-    .option('-f, --force', 'Force stop', false)
-    .action(async (serviceNames, options) => {
-      const spinner = require('ora')({ text: 'Stopping services...', spinner: 'dots' }).start();
-      try {
-        await services.stop({
-          only: serviceNames.length > 0 ? serviceNames : undefined,
-          force: options.force
-        });
-        spinner.succeed(chalk.green('Services stopped'));
-      } catch (error) {
-        spinner.fail();
-        throw error;
-      }
-    });
-
-  program
-    .command('status [service]')
-    .description('Show service status (shortcut)')
-    .option('-j, --json', 'Output as JSON', false)
-    .action(async (serviceName, options) => {
-      const statuses = serviceName 
-        ? [await services.getStatus(serviceName)]
-        : await services.getAllStatus();
-      
-      if (options.json) {
-        console.log(JSON.stringify(statuses, null, 2));
-      } else {
-        console.log(require('./components/ServiceTable').formatServiceTable(
-          Array.isArray(statuses) ? statuses : [statuses]
-        ));
-      }
-    });
 
   return program;
 }

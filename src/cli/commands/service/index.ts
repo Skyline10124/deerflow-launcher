@@ -16,6 +16,7 @@ export function registerStartCommand(
     .option('-w, --watch', 'Watch configuration files for changes', false)
     .option('-d, --detach', 'Run services in background', false)
     .option('-t, --timeout <seconds>', 'Startup timeout', '60')
+    .option('-l, --langsmith', 'Enable LangSmith tracing', false)
     .action(async (serviceNames: string[], options) => {
       const timeout = parseInt(options.timeout);
       if (isNaN(timeout) || timeout < 1) {
@@ -35,12 +36,14 @@ export function registerStartCommand(
           only: serviceNames.length > 0 ? serviceNames as any : undefined,
           watch: options.watch,
           detached: options.detach,
-          timeout
+          timeout,
+          langsmith: options.langsmith
         });
 
         if (options.detach) {
           spinner.succeed(chalk.green('Services started in background'));
           console.log(chalk.gray('\nUse "deerflow status" to check service status'));
+          process.exit(0);
         } else {
           spinner.succeed(chalk.green('Services started successfully'));
           const statuses = await services.getAllStatus();
@@ -95,8 +98,14 @@ export function registerStopCommand(
 
         spinner.succeed(chalk.green('Services stopped successfully'));
 
-        const statuses = await services.getAllStatus();
-        console.log('\n' + formatServiceTable(statuses));
+        try {
+          const statuses = await services.getAllStatus();
+          console.log('\n' + formatServiceTable(statuses));
+        } catch {
+          console.log(chalk.gray('\nNo services found'));
+        }
+
+        process.exit(0);
 
       } catch (error) {
         spinner.fail();
@@ -189,7 +198,7 @@ export function registerServiceCommands(
   services: IServiceManager
 ): void {
   const serviceCmd = program
-    .command('service')
+    .command('service [command]')
     .alias('svc')
     .description('Service management commands');
 

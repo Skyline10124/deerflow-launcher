@@ -1,4 +1,4 @@
-import { ProcessMonitor } from '../../src/modules/ProcessMonitor';
+import { ProcessMonitor, formatStatusTable, formatBytes, formatUptime } from '../../src/modules/ProcessMonitor';
 import { ServiceName } from '../../src/types';
 
 describe('ProcessMonitor', () => {
@@ -35,7 +35,7 @@ describe('ProcessMonitor', () => {
       { name: 'gateway', status: 'stopped' as const, cpu: 0, memory: 0, restarts: 1, uptime: 0 }
     ];
 
-    const table = monitor.formatStatusTable(statuses);
+    const table = formatStatusTable(statuses);
     
     expect(table).toContain('langgraph');
     expect(table).toContain('gateway');
@@ -44,22 +44,18 @@ describe('ProcessMonitor', () => {
   });
 
   it('should format memory correctly', () => {
-    const statuses = [
-      { name: 'test', status: 'online' as const, cpu: 5, memory: 1024 * 1024 * 50, restarts: 0, uptime: 0 }
-    ];
-
-    const table = monitor.formatStatusTable(statuses);
-    expect(table).toContain('50MB');
+    expect(formatBytes(0)).toBe('0 B');
+    expect(formatBytes(1024)).toBe('1 KB');
+    expect(formatBytes(1024 * 1024 * 50)).toBe('50 MB');
+    expect(formatBytes(1024 * 1024 * 1024 * 2)).toBe('2 GB');
   });
 
   it('should format uptime correctly', () => {
-    const statuses = [
-      { name: 'test1', status: 'online' as const, cpu: 5, memory: 1024, restarts: 0, uptime: 3600000 },
-      { name: 'test2', status: 'online' as const, cpu: 5, memory: 1024, restarts: 0, uptime: 7200000 }
-    ];
-
-    const table = monitor.formatStatusTable(statuses);
-    expect(table).toContain('1h');
+    expect(formatUptime(30000)).toBe('30s');
+    expect(formatUptime(60000)).toBe('1m');
+    expect(formatUptime(3600000)).toBe('1h 0m');
+    expect(formatUptime(7200000)).toBe('2h 0m');
+    expect(formatUptime(86400000)).toBe('1d 0h');
   });
 
   it('should register error handler', () => {

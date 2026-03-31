@@ -26,16 +26,34 @@ export const SERVICE_TIMEOUTS: Record<ServiceName, number> = {
   [ServiceName.NGINX]: getEnvInt('NGINX_TIMEOUT', 10000)
 };
 
-export function getServiceDefinitions(deerflowPath: string): ServiceDefinition[] {
+export interface ServiceOptions {
+  langsmith?: boolean;
+}
+
+export function getServiceDefinitions(deerflowPath: string, options?: ServiceOptions): ServiceDefinition[] {
+  const langgraphArgs = ['run', 'langgraph', 'dev', '--port', String(SERVICE_PORTS[ServiceName.LANGGRAPH])];
+  
+  if (!options?.langsmith) {
+    langgraphArgs.push('--no-browser');
+  }
+  
+  const langsmithEnv: Record<string, string> = {};
+  if (options?.langsmith) {
+    langsmithEnv.LANGSMITH_TRACING = 'true';
+  } else {
+    langsmithEnv.LANGSMITH_TRACING = 'false';
+  }
+
   return [
     {
       name: ServiceName.LANGGRAPH,
       script: 'uv',
-      args: ['run', 'langgraph', 'dev', '--port', String(SERVICE_PORTS[ServiceName.LANGGRAPH])],
+      args: langgraphArgs,
       cwd: path.join(deerflowPath, 'backend'),
       port: SERVICE_PORTS[ServiceName.LANGGRAPH],
       timeout: SERVICE_TIMEOUTS[ServiceName.LANGGRAPH],
-      dependencies: []
+      dependencies: [],
+      env: langsmithEnv
     },
     {
       name: ServiceName.GATEWAY,
@@ -44,7 +62,8 @@ export function getServiceDefinitions(deerflowPath: string): ServiceDefinition[]
       cwd: path.join(deerflowPath, 'backend'),
       port: SERVICE_PORTS[ServiceName.GATEWAY],
       timeout: SERVICE_TIMEOUTS[ServiceName.GATEWAY],
-      dependencies: [ServiceName.LANGGRAPH]
+      dependencies: [ServiceName.LANGGRAPH],
+      env: langsmithEnv
     },
     {
       name: ServiceName.FRONTEND,

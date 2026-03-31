@@ -17,7 +17,7 @@ export function registerDoctorCommand(
   program
     .command('doctor')
     .description('Run environment diagnostics')
-    .option('--fix', 'Attempt to fix issues', false)
+    .option('-f, --fix', 'Attempt to fix issues', false)
     .action(async (options) => {
       console.log(chalk.bold.cyan('\n🔍 DeerFlow Environment Diagnostics\n'));
 

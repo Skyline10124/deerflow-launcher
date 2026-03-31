@@ -8,7 +8,7 @@ export function registerConfigCommands(
   services: IServiceManager
 ): void {
   const configCmd = program
-    .command('config')
+    .command('config [command]')
     .description('Configuration management commands');
 
   configCmd
