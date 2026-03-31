@@ -202,12 +202,17 @@ export class Launcher {
     try {
       this.configWatcher.stop();
       this.processMonitor.stopMonitoring();
-      await this.processMonitor.disconnect();
+      
+      try {
+        await this.processMonitor.disconnect();
+      } catch {}
+      
       await this.processManager.stopAll(this.context.services);
-      await this.processManager.disconnect();
+      this.processManager.forceDisconnect();
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       this.logger.error(`Cleanup error: ${errorMsg}`);
+      this.processManager.forceDisconnect();
     }
     
     this.logger.info('Cleanup completed');

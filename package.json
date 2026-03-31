@@ -2,16 +2,17 @@
   "name": "deerflow-launcher",
   "version": "0.2.0",
   "description": "DeerFlow Desktop Launcher - Service management and startup",
-  "main": "dist/main.js",
+  "main": "dist/src/main.js",
   "bin": {
-    "deerflow-launcher": "./dist/cli.js"
+    "deerflow-launcher": "./dist/src/cli.js"
   },
   "scripts": {
     "build": "tsc",
-    "start": "ts-node src/main.ts",
-    "cli": "ts-node src/cli.ts",
+    "start": "node dist/src/main.js",
+    "start:dev": "ts-node src/main.ts",
+    "cli": "node dist/src/cli.js",
     "dev": "ts-node-dev --respawn src/main.ts",
-    "clean": "ts-node src/main.ts --clean",
+    "clean": "node dist/src/main.js --clean",
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write src/**/*.ts",
     "test": "jest",

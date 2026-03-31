@@ -104,11 +104,20 @@ export class ProcessManager {
         PM2.disconnect();
         this.connected = false;
         this.logger.debug('Disconnected from PM2');
-      } catch (error) {
+      } catch {
         this.logger.warn('Error during PM2 disconnect');
       }
       resolve();
     });
+  }
+
+  forceDisconnect(): void {
+    if (this.connected) {
+      try {
+        PM2.disconnect();
+      } catch {}
+      this.connected = false;
+    }
   }
 
   isConnected(): boolean {
@@ -134,7 +143,7 @@ export class ProcessManager {
     if (isNodeScript) {
       interpreter = undefined;
     } else if (isWindows) {
-      const wrapperPath = path.join(__dirname, '..', '..', 'scripts', 'wrapper.js');
+      const wrapperPath = path.join(process.cwd(), 'scripts', 'wrapper.js');
       script = process.execPath;
       args = [wrapperPath, service.name, service.script, ...(service.args || [])];
       interpreter = undefined;
@@ -238,66 +247,49 @@ export class ProcessManager {
   }
 
   async stopService(name: ServiceName): Promise<void> {
-    if (!this.connected) {
-      this.logger.warn(`PM2 not connected, cannot stop ${name}`);
-      return;
-    }
-
     this.logger.info(`Stopping ${name} service...`);
 
-    const timeout = 10000;
+    const timeout = 3000;
+    
+    if (!this.connected) {
+      this.logger.info(`Stopped ${name} (not connected)`);
+      return;
+    }
     
     try {
-      const stopPromise = new Promise<void>((resolve, reject) => {
-        this.logger.debug(`PM2.stop(${name}) called`);
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(() => {
+          this.logger.warn(`PM2.stop(${name}) timeout, continuing...`);
+          resolve();
+        }, timeout);
+        
         PM2.stop(name, (err: Error | null) => {
+          clearTimeout(timer);
           if (err) {
             this.logger.debug(`PM2.stop(${name}) error: ${err.message}`);
-            reject(err);
-          } else {
-            this.logger.debug(`PM2.stop(${name}) success`);
-            resolve();
           }
+          resolve();
         });
       });
 
-      await Promise.race([
-        stopPromise,
-        new Promise<void>((_, reject) => 
-          setTimeout(() => reject(new Error(`PM2.stop(${name}) timeout`)), timeout)
-        )
-      ]);
-
-      const deletePromise = new Promise<void>((resolve, reject) => {
-        this.logger.debug(`PM2.delete(${name}) called`);
+      await new Promise<void>((resolve) => {
+        const timer = setTimeout(() => {
+          this.logger.warn(`PM2.delete(${name}) timeout, continuing...`);
+          resolve();
+        }, timeout);
+        
         PM2.delete(name, (err: Error | null) => {
+          clearTimeout(timer);
           if (err) {
             this.logger.debug(`PM2.delete(${name}) error: ${err.message}`);
-            reject(err);
-          } else {
-            this.logger.debug(`PM2.delete(${name}) success`);
-            resolve();
           }
+          resolve();
         });
       });
-
-      await Promise.race([
-        deletePromise,
-        new Promise<void>((_, reject) => 
-          setTimeout(() => reject(new Error(`PM2.delete(${name}) timeout`)), timeout)
-        )
-      ]);
 
       this.logger.info(`Stopped ${name}`);
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      this.logger.warn(`${errorMsg}, forcing delete...`);
-      
-      await new Promise<void>((resolve) => {
-        PM2.delete(name, () => resolve());
-      });
-      
-      this.logger.info(`Force stopped ${name}`);
+      this.logger.warn(`Error stopping ${name}: ${error}, continuing...`);
     }
   }
 
