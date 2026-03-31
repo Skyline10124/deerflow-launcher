@@ -3,14 +3,16 @@ import * as path from 'path';
 import { Logger, getLogger } from './Logger';
 import { ConfigInitResult, CONFIG_FILE_MAPPINGS, ErrorCodes } from '../types';
 
-const NGINX_REQUIRED_DIRS = ['logs', 'temp/client_body_temp', 'temp/proxy_temp', 'temp/fastcgi_temp', 'temp/uwsgi_temp', 'temp/scgi_temp'];
+const NGINX_REQUIRED_DIRS = ['temp/client_body_temp', 'temp/proxy_temp', 'temp/fastcgi_temp', 'temp/uwsgi_temp', 'temp/scgi_temp'];
 
 export class ConfigInitializer {
   private logger: Logger;
   private deerflowPath: string;
+  private launcherPath: string;
 
   constructor(deerflowPath: string) {
     this.deerflowPath = deerflowPath;
+    this.launcherPath = path.dirname(path.dirname(path.dirname(__dirname)));
     this.logger = getLogger('ConfigInit');
   }
 
@@ -85,7 +87,16 @@ export class ConfigInitializer {
     }
 
     try {
-      const content = fs.readFileSync(templatePath, 'utf-8');
+      let content = fs.readFileSync(templatePath, 'utf-8');
+      
+      if (targetName === 'nginx.conf') {
+        const logDir = path.join(this.launcherPath, 'logs').replace(/\\/g, '/');
+        content = content.replace(/logs\/nginx\.log/g, `${logDir}/nginx.log`);
+        content = content.replace(/logs\/nginx-access\.log/g, `${logDir}/nginx.log`);
+        content = content.replace(/logs\/nginx-error\.log/g, `${logDir}/nginx.log`);
+        content = content.replace(/logs\/nginx\.pid/g, `${logDir}/nginx.pid`);
+      }
+      
       fs.writeFileSync(targetPath, content, 'utf-8');
       this.logger.info(`Created ${targetName} from template`);
       return 'created';
