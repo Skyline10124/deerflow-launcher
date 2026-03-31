@@ -3,12 +3,16 @@ import chalk from 'chalk';
 import type { IServiceManager } from '../../../core/interfaces/IServiceManager';
 import { CLIError, ErrorCode } from '../../utils/errors';
 
-export function registerConfigGetCommand(
+export function registerConfigCommands(
   program: Command,
   services: IServiceManager
 ): void {
-  program
-    .command('config:get <key>')
+  const configCmd = program
+    .command('config')
+    .description('Configuration management commands');
+
+  configCmd
+    .command('get <key>')
     .description('Get configuration value')
     .action(async (key: string) => {
       const configService = services.getConfigService();
@@ -31,14 +35,9 @@ export function registerConfigGetCommand(
         );
       }
     });
-}
 
-export function registerConfigSetCommand(
-  program: Command,
-  services: IServiceManager
-): void {
-  program
-    .command('config:set <key> <value>')
+  configCmd
+    .command('set <key> <value>')
     .description('Set configuration value')
     .action(async (key: string, value: string) => {
       const configService = services.getConfigService();
@@ -62,14 +61,9 @@ export function registerConfigSetCommand(
         );
       }
     });
-}
 
-export function registerConfigValidateCommand(
-  program: Command,
-  services: IServiceManager
-): void {
-  program
-    .command('config:validate')
+  configCmd
+    .command('validate')
     .description('Validate configuration')
     .action(async () => {
       const configService = services.getConfigService();
@@ -93,14 +87,9 @@ export function registerConfigValidateCommand(
         );
       }
     });
-}
 
-export function registerConfigInitCommand(
-  program: Command,
-  services: IServiceManager
-): void {
-  program
-    .command('config:init')
+  configCmd
+    .command('init')
     .description('Initialize configuration')
     .action(async () => {
       const configService = services.getConfigService();
@@ -116,18 +105,4 @@ export function registerConfigInitCommand(
         );
       }
     });
-}
-
-export function registerConfigCommands(
-  program: Command,
-  services: IServiceManager
-): void {
-  const configCmd = program
-    .command('config')
-    .description('Configuration management commands');
-
-  registerConfigGetCommand(configCmd, services);
-  registerConfigSetCommand(configCmd, services);
-  registerConfigValidateCommand(configCmd, services);
-  registerConfigInitCommand(configCmd, services);
 }

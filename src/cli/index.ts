@@ -17,14 +17,35 @@ import { Logger, getLogger, setDefaultLogger } from '../modules/Logger';
 import { EnvDoctor } from '../modules/EnvDoctor';
 import { SERVICE_START_ORDER, SERVICE_PORTS, getServiceDefinitions } from '../config/services';
 import { readFileSync, readdirSync, unlinkSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 
-function getDeerFlowPath(): string {
+function findDeerFlowRoot(): string {
   const envPath = process.env.DEERFLOW_PATH;
   if (envPath && existsSync(envPath)) {
     return envPath;
   }
+
+  let currentPath = process.cwd();
+  
+  while (currentPath !== dirname(currentPath)) {
+    if (existsSync(join(currentPath, 'backend')) && 
+        existsSync(join(currentPath, 'frontend'))) {
+      return currentPath;
+    }
+    currentPath = dirname(currentPath);
+  }
+
+  const parentDir = dirname(process.cwd());
+  if (existsSync(join(parentDir, 'backend')) && 
+      existsSync(join(parentDir, 'frontend'))) {
+    return parentDir;
+  }
+
   return process.cwd();
+}
+
+function getDeerFlowPath(): string {
+  return findDeerFlowRoot();
 }
 
 function getLogDir(): string {
@@ -149,13 +170,28 @@ class ServiceManagerAdapter implements IServiceManager {
     for (const name of services) {
       const def = serviceDefs.find(d => d.name === name);
       if (def) {
-        await this.processManager.startService(def, dependencies);
-        dependencies.set(name, { 
-          name, 
-          port: def.port, 
-          status: ServiceStatus.HEALTHY 
-        });
+        if (options?.detached) {
+          await this.processManager.startServiceDetached(def, dependencies);
+          dependencies.set(name, { 
+            name, 
+            port: def.port, 
+            status: ServiceStatus.STARTING
+          });
+        } else {
+          await this.processManager.startService(def, dependencies);
+          dependencies.set(name, { 
+            name, 
+            port: def.port, 
+            status: ServiceStatus.HEALTHY 
+          });
+        }
       }
+    }
+
+    if (options?.detached) {
+      try {
+        await this.processManager.disconnect();
+      } catch {}
     }
   }
 
@@ -174,7 +210,11 @@ class ServiceManagerAdapter implements IServiceManager {
       await this.processManager.stopService(name);
     }
 
-    await this.processManager.disconnect();
+    try {
+      await this.processManager.disconnect();
+    } catch {
+      // Ignore disconnect errors - PM2 daemon may already be shutting down
+    }
   }
 
   async restart(services?: ServiceName[]): Promise<void> {
@@ -187,7 +227,10 @@ class ServiceManagerAdapter implements IServiceManager {
     await this.processMonitor.connect();
     
     const statuses = await this.processMonitor.getStatus();
-    await this.processMonitor.disconnect();
+    
+    try {
+      await this.processMonitor.disconnect();
+    } catch {}
     
     if (service) {
       const found = statuses.find(s => s.name === service);
@@ -204,7 +247,11 @@ class ServiceManagerAdapter implements IServiceManager {
   async getAllStatus(): Promise<ServiceStatusInfo[]> {
     await this.processMonitor.connect();
     const statuses = await this.processMonitor.getStatus();
-    await this.processMonitor.disconnect();
+    
+    try {
+      await this.processMonitor.disconnect();
+    } catch {}
+    
     return statuses.map(s => this.toStatusInfo(s));
   }
 
@@ -247,12 +294,18 @@ export async function createCLI(): Promise<Command> {
 
   program.exitOverride();
 
-  process.on('unhandledRejection', (reason) => {
+  process.on('unhandledRejection', (reason: any) => {
+    if (reason?.message?.includes('sock') || reason?.code === 'ECONNREFUSED') {
+      return;
+    }
     console.error(chalk.red('\nUnexpected error:'), reason);
     process.exit(ErrorCode.UNKNOWN_ERROR);
   });
 
-  process.on('uncaughtException', (error) => {
+  process.on('uncaughtException', (error: any) => {
+    if (error?.message?.includes('sock') || error?.code === 'ECONNREFUSED') {
+      return;
+    }
     console.error(chalk.red('\nUnexpected error:'), error);
     process.exit(ErrorCode.UNKNOWN_ERROR);
   });

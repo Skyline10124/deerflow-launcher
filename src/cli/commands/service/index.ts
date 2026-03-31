@@ -26,7 +26,7 @@ export function registerStartCommand(
       }
 
       const spinner = ora({
-        text: 'Starting services...',
+        text: options.detach ? 'Starting services in background...' : 'Starting services...',
         spinner: 'dots'
       }).start();
 
@@ -38,10 +38,14 @@ export function registerStartCommand(
           timeout
         });
 
-        spinner.succeed(chalk.green('Services started successfully'));
-
-        const statuses = await services.getAllStatus();
-        console.log('\n' + formatServiceTable(statuses));
+        if (options.detach) {
+          spinner.succeed(chalk.green('Services started in background'));
+          console.log(chalk.gray('\nUse "deerflow status" to check service status'));
+        } else {
+          spinner.succeed(chalk.green('Services started successfully'));
+          const statuses = await services.getAllStatus();
+          console.log('\n' + formatServiceTable(statuses));
+        }
 
       } catch (error) {
         spinner.fail();

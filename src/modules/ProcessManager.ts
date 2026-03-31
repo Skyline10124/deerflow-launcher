@@ -246,6 +246,54 @@ export class ProcessManager {
     return instance;
   }
 
+  async startServiceDetached(
+    service: ServiceDefinition,
+    dependencies: Map<ServiceName, ServiceInstance>
+  ): Promise<ServiceInstance> {
+    this.logger.info(`Starting ${service.name} service (detached)...`);
+
+    if (service.dependencies) {
+      for (const depName of service.dependencies) {
+        const dep = dependencies.get(depName);
+        if (!dep || (dep.status !== ServiceStatus.HEALTHY && dep.status !== ServiceStatus.STARTING)) {
+          throw new Error(`Dependency ${depName} is not ready`);
+        }
+      }
+    }
+
+    const instance: ServiceInstance = {
+      name: service.name,
+      status: ServiceStatus.STARTING,
+      port: service.port,
+      startTime: new Date()
+    };
+
+    try {
+      await this.deleteExistingProcess(service.name);
+
+      const config = this.buildPM2Config(service);
+
+      await new Promise<void>((resolve, reject) => {
+        PM2.start(config, (err: Error | null) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve();
+          }
+        });
+      });
+
+      this.logger.info(`${service.name} started in background`);
+    } catch (error) {
+      instance.status = ServiceStatus.FAILED;
+      instance.error = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to start ${service.name}: ${instance.error}`);
+      throw error;
+    }
+
+    return instance;
+  }
+
   async stopService(name: ServiceName): Promise<void> {
     this.logger.info(`Stopping ${name} service...`);
 
