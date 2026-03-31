@@ -4,4 +4,4 @@ dist/
 *.log
 coverage/
 .env
-.trae/
+/.trae/
