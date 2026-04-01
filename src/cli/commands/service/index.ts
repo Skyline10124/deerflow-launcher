@@ -47,7 +47,7 @@ export function registerStartCommand(
 
       try {
         await services.start({
-          only: serviceNames.length > 0 ? serviceNames as any : undefined,
+          only: serviceNames.length > 0 ? serviceNames as ServiceName[] : undefined,
           watch: options.watch,
           detached: options.detach,
           timeout,
@@ -118,7 +118,7 @@ export function registerStopCommand(
 
       try {
         await services.stop({
-          only: serviceNames.length > 0 ? serviceNames as any : undefined,
+          only: serviceNames.length > 0 ? serviceNames as ServiceName[] : undefined,
           force: options.force,
           timeout: parseInt(options.timeout)
         });
@@ -175,7 +175,7 @@ export function registerStatusCommand(
         let statuses: ServiceStatusInfo[];
         
         if (serviceName) {
-          const result = await services.getStatus(serviceName as any);
+          const result = await services.getStatus(serviceName as ServiceName);
           statuses = Array.isArray(result) ? result : [result];
         } else {
           statuses = await services.getAllStatus();
@@ -225,7 +225,7 @@ export function registerRestartCommand(
       }).start();
 
       try {
-        await services.restart(serviceNames.length > 0 ? serviceNames as any : undefined);
+        await services.restart(serviceNames.length > 0 ? serviceNames as ServiceName[] : undefined);
 
         spinner.succeed(chalk.green('Services restarted successfully'));
 

@@ -12,6 +12,11 @@ export const PM2ErrorCodes = {
 
 export type PM2ErrorCode = typeof PM2ErrorCodes[keyof typeof PM2ErrorCodes];
 
+interface ErrorLike {
+  code?: string;
+  message: string;
+}
+
 export class PM2Error extends Error {
   constructor(
     public code: PM2ErrorCode,
@@ -38,7 +43,7 @@ export class PM2ErrorHandler {
     this.logger = getLogger('PM2ErrorHandler');
   }
 
-  handle(error: any): never {
+  handle(error: ErrorLike): never {
     const errorCode = this.classifyError(error);
     const suggestion = this.getSuggestion(errorCode);
     
@@ -51,7 +56,7 @@ export class PM2ErrorHandler {
     throw new PM2Error(errorCode, error.message, suggestion);
   }
 
-  classifyError(error: any): PM2ErrorCode {
+  classifyError(error: ErrorLike): PM2ErrorCode {
     if (error.code === 'EACCES') {
       return PM2ErrorCodes.PM2_PERMISSION_DENIED;
     }

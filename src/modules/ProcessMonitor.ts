@@ -1,4 +1,5 @@
 import * as pm2 from 'pm2';
+import type { ProcessDescription } from 'pm2';
 import { execSync } from 'child_process';
 import Table from 'cli-table3';
 import chalk from 'chalk';
@@ -281,11 +282,11 @@ export class ProcessMonitor {
     });
   }
 
-  async listProcesses(): Promise<any[]> {
+  async listProcesses(): Promise<ProcessDescription[]> {
     if (!this.connected) return [];
     
-    return new Promise<any[]>((resolve, reject) => {
-      pm2.list((err: Error | null, list: any[]) => {
+    return new Promise<ProcessDescription[]>((resolve, reject) => {
+      pm2.list((err: Error | null, list: ProcessDescription[]) => {
         if (err) {
           reject(err);
         } else {
@@ -307,28 +308,31 @@ export class ProcessMonitor {
       winMetricsMap = this.getAllWindowsProcessMetrics();
     }
     
-    return processes.map(proc => {
-      const pid = proc.pid;
-      let cpu = proc.monit?.cpu || 0;
-      let memory = proc.monit?.memory || 0;
-      
-      if (pid && winMetricsMap.has(pid)) {
-        const winMetrics = winMetricsMap.get(pid)!;
-        cpu = winMetrics.cpu;
-        memory = winMetrics.memory;
-      }
-      
-      return {
-        name: proc.name,
-        status: this.mapStatus(proc.pm2_env?.status),
-        cpu,
-        memory,
-        restarts: proc.pm2_env?.restart_time || 0,
-        uptime: proc.pm2_env?.pm_uptime ? Date.now() - proc.pm2_env.pm_uptime : 0,
-        pid: proc.pid,
-        port: proc.pm2_env?.env?.PORT
-      };
-    });
+    return processes
+      .filter((proc): proc is ProcessDescription & { name: string } => !!proc.name)
+      .map(proc => {
+        const pid = proc.pid;
+        let cpu = proc.monit?.cpu || 0;
+        let memory = proc.monit?.memory || 0;
+        
+        if (pid && winMetricsMap.has(pid)) {
+          const winMetrics = winMetricsMap.get(pid);
+          if (winMetrics) {
+            cpu = winMetrics.cpu;
+            memory = winMetrics.memory;
+          }
+        }
+        
+        return {
+          name: proc.name,
+          status: this.mapStatus(proc.pm2_env?.status),
+          cpu,
+          memory,
+          restarts: proc.pm2_env?.restart_time || 0,
+          uptime: proc.pm2_env?.pm_uptime ? Date.now() - proc.pm2_env.pm_uptime : 0,
+          pid: proc.pid
+        };
+      });
   }
 
   private getAllWindowsProcessMetrics(): Map<number, { cpu: number; memory: number }> {

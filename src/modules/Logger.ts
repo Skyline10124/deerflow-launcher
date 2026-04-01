@@ -100,8 +100,10 @@ export class Logger {
     }
     this.lastRotationCheck = now;
 
+    if (!this.logFile) return;
+    
     try {
-      const stats = fs.statSync(this.logFile!);
+      const stats = fs.statSync(this.logFile);
       if (stats.size >= this.rotationConfig.maxSize) {
         this.rotateLog();
       }

@@ -132,12 +132,13 @@ export class GracefulShutdown {
       throw new Error('Stop service function not registered');
     }
 
+    const stopFn = this.stopServiceFn;
     return new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error(`Timeout after ${this.config.gracefulTimeout}ms`));
       }, this.config.gracefulTimeout);
 
-      this.stopServiceFn!(serviceName)
+      stopFn(serviceName)
         .then(() => {
           clearTimeout(timeout);
           resolve();

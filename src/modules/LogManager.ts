@@ -83,11 +83,13 @@ export class LogManager {
     }
 
     if (filter.since) {
-      entries = entries.filter(e => new Date(e.timestamp) >= filter.since!);
+      const since = filter.since;
+      entries = entries.filter(e => new Date(e.timestamp) >= since);
     }
 
     if (filter.until) {
-      entries = entries.filter(e => new Date(e.timestamp) <= filter.until!);
+      const until = filter.until;
+      entries = entries.filter(e => new Date(e.timestamp) <= until);
     }
 
     if (filter.search) {

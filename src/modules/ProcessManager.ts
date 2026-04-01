@@ -1,6 +1,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as pm2 from 'pm2';
+import type { Proc, ProcessDescription } from 'pm2';
 import { Logger, getLogger } from './Logger';
 import { HealthChecker } from './HealthChecker';
 import { PM2Runtime, getScriptPath } from './PM2Runtime';
@@ -11,7 +12,7 @@ import {
   ServiceName
 } from '../types';
 
-const MANAGED_SERVICE_NAMES = Object.values(ServiceName);
+const MANAGED_SERVICE_NAMES: readonly ServiceName[] = Object.values(ServiceName);
 
 /**
  * PM2 进程配置接口
@@ -73,11 +74,11 @@ export class ProcessManager {
   }
 
   /** 判断进程是否为过期进程 (日志路径不匹配) */
-  private isStaleProcess(proc: any, normalizedLogDir: string): boolean {
-    if (!MANAGED_SERVICE_NAMES.includes(proc.name)) {
+  private isStaleProcess(proc: ProcessDescription, normalizedLogDir: string): boolean {
+    if (!proc.name || !MANAGED_SERVICE_NAMES.includes(proc.name as ServiceName)) {
       return false;
     }
-    const procLogPath = proc.pm2_env?.pm_log_path || proc.pm2_env?.log_file || '';
+    const procLogPath = proc.pm2_env?.pm_out_log_path || proc.pm2_env?.pm_err_log_path || '';
     if (!procLogPath) {
       return false;
     }
@@ -99,7 +100,7 @@ export class ProcessManager {
       const normalizedLogDir = path.resolve(this.logDir).toLowerCase();
       
       for (const proc of list) {
-        if (this.isStaleProcess(proc, normalizedLogDir)) {
+        if (proc.name && this.isStaleProcess(proc, normalizedLogDir)) {
           this.logger.debug(`Cleaning stale process (log path mismatch): ${proc.name}`);
           await this.deleteProcess(proc.name);
         }
@@ -225,8 +226,8 @@ export class ProcessManager {
 
       const config = this.buildPM2Config(service);
 
-      const proc = await new Promise<any>((resolve, reject) => {
-        pm2.start(config, (err: Error | null, proc: any) => {
+      const proc = await new Promise<Proc>((resolve, reject) => {
+        pm2.start(config, (err: Error | null, proc: Proc) => {
           if (err) {
             reject(err);
           } else {
@@ -235,8 +236,8 @@ export class ProcessManager {
         });
       });
 
-      if (proc && proc[0]) {
-        instance.pid = proc[0].pm2_env?.pm_id;
+      if (proc && proc.pm_id !== undefined) {
+        instance.pid = proc.pm_id;
       }
 
       this.logger.debug(`${service.name} process started, waiting for health check...`);
@@ -397,10 +398,11 @@ export class ProcessManager {
     try {
       const list = await this.listProcesses();
       for (const proc of list) {
-        if (MANAGED_SERVICE_NAMES.includes(proc.name)) {
-          this.logger.debug(`Killing process: ${proc.name}`);
+        const procName = proc.name;
+        if (procName && (MANAGED_SERVICE_NAMES as readonly string[]).includes(procName)) {
+          this.logger.debug(`Killing process: ${procName}`);
           await new Promise<void>((resolve) => {
-            pm2.delete(proc.name, () => resolve());
+            pm2.delete(procName, () => resolve());
           });
         }
       }
@@ -425,13 +427,13 @@ export class ProcessManager {
   }
 
   /** 获取所有 PM2 进程列表 */
-  async listProcesses(): Promise<any[]> {
+  async listProcesses(): Promise<ProcessDescription[]> {
     if (!this.connected) {
       return [];
     }
 
-    return new Promise<any[]>((resolve, reject) => {
-      pm2.list((err: Error | null, list: any[]) => {
+    return new Promise<ProcessDescription[]>((resolve, reject) => {
+      pm2.list((err: Error | null, list: ProcessDescription[]) => {
         if (err) {
           reject(err);
         } else {
@@ -441,7 +443,7 @@ export class ProcessManager {
     });
   }
 
-  async getProcessInfo(name: string): Promise<any | null> {
+  async getProcessInfo(name: string): Promise<ProcessDescription | null> {
     const list = await this.listProcesses();
     return list.find((p) => p.name === name) || null;
   }

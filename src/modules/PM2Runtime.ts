@@ -19,7 +19,7 @@ export interface PM2DaemonConfig {
 }
 
 export function isPkgEnvironment(): boolean {
-  return typeof (process as any).pkg !== 'undefined';
+  return typeof (process as unknown as Record<string, unknown>).pkg !== 'undefined';
 }
 
 function getDevRootFromEntry(): string {

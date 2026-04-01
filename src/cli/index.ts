@@ -43,9 +43,9 @@ class LogServiceAdapter implements ILogService {
     follow?: boolean;
     level?: string;
   }): Promise<string[]> {
-    const filter: any = { service };
+    const filter: { service: ServiceName | 'launcher'; lines?: number; level?: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' } = { service };
     if (options?.lines) filter.lines = options.lines;
-    if (options?.level) filter.level = options.level.toUpperCase();
+    if (options?.level) filter.level = options.level.toUpperCase() as 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
 
     try {
       const entries = this.logManager.readLogs(filter);
@@ -166,7 +166,7 @@ class ServiceManagerAdapter implements IServiceManager {
     }
     
     const services = options?.only 
-      ? SERVICE_START_ORDER.filter((s): s is ServiceName => options.only!.includes(s))
+      ? SERVICE_START_ORDER.filter((s): s is ServiceName => options.only?.includes(s) ?? false)
       : SERVICE_START_ORDER;
 
     const serviceDefs = getServiceDefinitions(getDeerFlowPath(), { langsmith: options?.langsmith });
@@ -213,7 +213,7 @@ class ServiceManagerAdapter implements IServiceManager {
     }
     
     const services = options?.only 
-      ? SERVICE_START_ORDER.filter((s): s is ServiceName => options.only!.includes(s))
+      ? SERVICE_START_ORDER.filter((s): s is ServiceName => options.only?.includes(s) ?? false)
       : SERVICE_START_ORDER;
 
     for (const name of services) {
@@ -334,17 +334,18 @@ export async function createCLI(): Promise<Command> {
     .version('0.3.0', '-v, --version');
 
   program.exitOverride();
-
-  process.on('unhandledRejection', (reason: any) => {
-    if (reason?.message?.includes('sock') || reason?.code === 'ECONNREFUSED') {
+  process.on('unhandledRejection', (reason: unknown) => {
+    const err = reason as { message?: string; code?: string };
+    if (err?.message?.includes('sock') || err?.code === 'ECONNREFUSED') {
       return;
     }
     console.error(chalk.red('\nUnexpected error:'), reason);
     process.exit(ErrorCode.UNKNOWN_ERROR);
   });
 
-  process.on('uncaughtException', (error: any) => {
-    if (error?.message?.includes('sock') || error?.code === 'ECONNREFUSED') {
+  process.on('uncaughtException', (error: unknown) => {
+    const err = error as { message?: string; code?: string };
+    if (err?.message?.includes('sock') || err?.code === 'ECONNREFUSED') {
       return;
     }
     console.error(chalk.red('\nUnexpected error:'), error);
@@ -365,8 +366,9 @@ export async function runCLI(): Promise<void> {
   try {
     const program = await createCLI();
     await program.parseAsync(process.argv);
-  } catch (error: any) {
-    if (error?.code === 'commander.helpDisplayed' || error?.code === 'commander.version') {
+  } catch (error: unknown) {
+    const err = error as { code?: string };
+    if (err?.code === 'commander.helpDisplayed' || err?.code === 'commander.version') {
       process.exit(0);
     }
     

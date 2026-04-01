@@ -133,7 +133,7 @@ export interface ErrorContext {
   port?: number;
   path?: string;
   command?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface LauncherError {
