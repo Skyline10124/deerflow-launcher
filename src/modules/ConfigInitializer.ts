@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { Logger, getLogger } from './Logger';
-import { ConfigInitResult, CONFIG_FILE_MAPPINGS, ErrorCodes } from '../types';
+import { ConfigInitResult, CONFIG_FILE_MAPPINGS } from '../types';
 
 const NGINX_REQUIRED_DIRS = ['temp/client_body_temp', 'temp/proxy_temp', 'temp/fastcgi_temp', 'temp/uwsgi_temp', 'temp/scgi_temp'];
 

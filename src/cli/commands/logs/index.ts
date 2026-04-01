@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import * as readline from 'readline';
-import type { IServiceManager, ServiceStatusInfo } from '../../../core/interfaces/IServiceManager';
+import type { IServiceManager } from '../../../core/interfaces/IServiceManager';
 import { CLIError, ErrorCode } from '../../utils/errors';
 import { formatLogLevel, formatTimestamp, LogFormatOptions } from '../../utils/format';
 import { ServiceName } from '../../../types';
@@ -9,7 +9,6 @@ import { ServiceName } from '../../../types';
 function formatLogLine(line: string, options: LogFormatOptions = {}): string {
   const timestampMatch = line.match(/^\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\]/);
   const levelMatch = line.match(/\[(DEBUG|INFO|WARN|ERROR)\]/i);
-  const serviceMatch = line.match(/\[([A-Za-z]+)\]/g);
   
   let formatted = line;
   

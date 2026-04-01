@@ -1,4 +1,4 @@
-import { execSync, spawnSync } from 'child_process';
+import { spawnSync } from 'child_process';
 import { Logger, getLogger } from './Logger';
 import { EnvCheckResult, DependencyInfo, ErrorCodes } from '../types';
 

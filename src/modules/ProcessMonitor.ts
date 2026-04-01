@@ -3,7 +3,7 @@ import { execSync } from 'child_process';
 import Table from 'cli-table3';
 import chalk from 'chalk';
 import { Logger, getLogger } from './Logger';
-import { ServiceName, ServiceStatus } from '../types';
+import { ServiceName } from '../types';
 
 export interface ProcessStatus {
   name: string;
@@ -232,7 +232,7 @@ export class ProcessMonitor {
     }
   }
 
-  private async handleProcessError(serviceName: string, proc: any): Promise<void> {
+  private async handleProcessError(serviceName: string, _proc: unknown): Promise<void> {
     const attempts = this.restartAttempts.get(serviceName) || 0;
     
     if (attempts >= this.config.maxRetries) {

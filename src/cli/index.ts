@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import * as fs from 'fs';
-import { dirname, join, resolve } from 'path';
+import { dirname, join } from 'path';
 import {
   registerServiceCommands,
   registerLogsCommands,
@@ -15,10 +15,9 @@ import { ServiceStatus, ServiceName } from '../types';
 import { ProcessManager } from '../modules/ProcessManager';
 import { ProcessMonitor, ProcessStatus } from '../modules/ProcessMonitor';
 import { LogManager } from '../modules/LogManager';
-import { Logger, getLogger, setDefaultLogger } from '../modules/Logger';
-import { EnvDoctor } from '../modules/EnvDoctor';
-import { SERVICE_START_ORDER, SERVICE_PORTS, getServiceDefinitions } from '../config/services';
-import { readFileSync, readdirSync, unlinkSync, existsSync } from 'fs';
+import { Logger, setDefaultLogger } from '../modules/Logger';
+import { SERVICE_START_ORDER, getServiceDefinitions } from '../config/services';
+import { existsSync } from 'fs';
 import { getDeerFlowPath } from '../utils/env';
 
 /** 获取日志目录路径 (launcher/logs) */

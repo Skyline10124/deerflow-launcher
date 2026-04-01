@@ -1,6 +1,6 @@
 {
   "name": "deerflow-launcher",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "description": "DeerFlow Desktop Launcher - Service management and startup",
   "main": "dist/src/main.js",
   "bin": {
@@ -17,7 +17,11 @@
     "format": "prettier --write src/**/*.ts",
     "test": "jest",
     "test:unit": "jest --testPathPattern=tests/unit",
-    "test:integration": "jest --testPathPattern=tests/integration"
+    "test:integration": "jest --testPathPattern=tests/integration",
+    "build:release": "node scripts/build-release.js",
+    "build:win": "npm run build && npx pkg . --targets node18-win-x64 --output dist/bin/deerflow-launcher.exe",
+    "build:linux": "npm run build && npx pkg . --targets node18-linux-x64 --output dist/bin/deerflow-launcher",
+    "build:mac": "npm run build && npx pkg . --targets node18-macos-x64 --output dist/bin/deerflow-launcher"
   },
   "keywords": [
     "deerflow",
@@ -43,8 +47,11 @@
     "@types/node": "^22.19.15",
     "@typescript-eslint/eslint-plugin": "^8.26.1",
     "@typescript-eslint/parser": "^8.26.1",
+    "archiver": "^7.0.1",
     "eslint": "^9.22.0",
+    "globals": "^17.4.0",
     "jest": "^29.7.0",
+    "pkg": "^5.8.1",
     "prettier": "^3.5.3",
     "ts-jest": "^29.2.6",
     "ts-node": "^10.9.2",
@@ -53,5 +60,26 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "pkg": {
+    "targets": [
+      "node18-win-x64",
+      "node18-linux-x64",
+      "node18-macos-x64"
+    ],
+    "outputPath": "dist/bin",
+    "assets": [
+      "scripts/**/*",
+      "node_modules/pm2/**/*",
+      "node_modules/@pm2/**/*",
+      "node_modules/pm2-axon/**/*",
+      "node_modules/pm2-deploy/**/*",
+      "node_modules/pm2-multimeter/**/*",
+      "node_modules/nssocket/**/*",
+      "node_modules/axon/**/*"
+    ],
+    "scripts": [
+      "dist/src/**/*.js"
+    ]
   }
 }

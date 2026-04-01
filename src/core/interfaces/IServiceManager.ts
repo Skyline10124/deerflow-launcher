@@ -1,4 +1,4 @@
-import { ServiceName, ServiceStatus } from '../../types';
+import { ServiceName } from '../../types';
 
 export interface ServiceStatusInfo {
   name: ServiceName;

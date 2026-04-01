@@ -29,7 +29,7 @@ export class HealthChecker {
             duration
           };
         }
-      } catch (error) {
+      } catch (_error) {
         this.logger.debug(`Connection attempt failed for port ${port}`);
       }
 

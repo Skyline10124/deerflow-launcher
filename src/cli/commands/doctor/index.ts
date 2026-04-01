@@ -1,8 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import type { IServiceManager } from '../../../core/interfaces/IServiceManager';
-import { CLIError, ErrorCode, ErrorMessages, ErrorSuggestions } from '../../utils/errors';
-import { MultiStepProgress } from '../../components/ProgressBar';
+import { ErrorCode, ErrorMessages, ErrorSuggestions } from '../../utils/errors';
 
 interface EnvCheck {
   name: string;
@@ -12,7 +11,7 @@ interface EnvCheck {
 
 export function registerDoctorCommand(
   program: Command,
-  services: IServiceManager
+  _services: IServiceManager
 ): void {
   program
     .command('doctor')

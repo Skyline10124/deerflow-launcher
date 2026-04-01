@@ -24,11 +24,6 @@ export interface LogRotationConfig {
   maxFiles: number;
 }
 
-const DEFAULT_ROTATION: LogRotationConfig = {
-  maxSize: 10 * 1024 * 1024,
-  maxFiles: 5
-};
-
 export class Logger {
   private module: string;
   private level: LogLevel;

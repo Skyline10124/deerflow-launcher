@@ -1,5 +1,4 @@
 import * as path from 'path';
-import * as fs from 'fs';
 import { Launcher, LauncherOptions } from './core/Launcher';
 import { LogLevel, parseLogLevel } from './modules/Logger';
 import { ProcessManager } from './modules/ProcessManager';

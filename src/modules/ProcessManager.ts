@@ -3,12 +3,12 @@ import * as fs from 'fs';
 import * as pm2 from 'pm2';
 import { Logger, getLogger } from './Logger';
 import { HealthChecker } from './HealthChecker';
+import { PM2Runtime, getScriptPath } from './PM2Runtime';
 import {
   ServiceDefinition,
   ServiceInstance,
   ServiceStatus,
-  ServiceName,
-  ErrorCodes
+  ServiceName
 } from '../types';
 
 const MANAGED_SERVICE_NAMES = Object.values(ServiceName);
@@ -45,6 +45,7 @@ export class ProcessManager {
   private healthChecker: HealthChecker;
   private connected: boolean = false;
   private logDir: string;
+  private pm2Runtime: PM2Runtime | null = null;
 
   constructor(logDir: string) {
     this.logger = getLogger('ProcessMgr');
@@ -52,24 +53,16 @@ export class ProcessManager {
     this.logDir = logDir;
   }
 
-  /** 连接到 PM2 守护进程 */
   async connect(): Promise<void> {
     if (this.connected) {
       return;
     }
 
     try {
-      await new Promise<void>((resolve, reject) => {
-        pm2.connect((err: Error | null) => {
-          if (err) {
-            reject(err);
-          } else {
-            this.connected = true;
-            this.logger.debug('Connected to PM2');
-            resolve();
-          }
-        });
-      });
+      this.pm2Runtime = new PM2Runtime({ logDir: this.logDir });
+      await this.pm2Runtime.initialize();
+      this.connected = true;
+      this.logger.debug('Connected to PM2 (bundled)');
 
       await this.cleanupStaleProcesses();
     } catch (error) {
@@ -116,22 +109,21 @@ export class ProcessManager {
     }
   }
 
-  /** 断开与 PM2 守护进程的连接 */
   async disconnect(): Promise<void> {
     if (!this.connected) {
       return;
     }
 
-    return new Promise<void>((resolve) => {
-      try {
-        pm2.disconnect();
-        this.connected = false;
-        this.logger.debug('Disconnected from PM2');
-      } catch {
-        this.logger.warn('Error during PM2 disconnect');
+    try {
+      if (this.pm2Runtime) {
+        await this.pm2Runtime.disconnect();
       }
-      resolve();
-    });
+      this.connected = false;
+      this.pm2Runtime = null;
+      this.logger.debug('Disconnected from PM2');
+    } catch {
+      this.logger.warn('Error during PM2 disconnect');
+    }
   }
 
   /** 强制断开 PM2 连接 (忽略错误) */
@@ -141,6 +133,7 @@ export class ProcessManager {
         pm2.disconnect();
       } catch {}
       this.connected = false;
+      this.pm2Runtime = null;
     }
   }
 
@@ -148,7 +141,6 @@ export class ProcessManager {
     return this.connected;
   }
 
-  /** 构建 PM2 进程配置 */
   private buildPM2Config(service: ServiceDefinition): PM2ProcessConfig {
     if (!fs.existsSync(this.logDir)) {
       fs.mkdirSync(this.logDir, { recursive: true });
@@ -168,7 +160,7 @@ export class ProcessManager {
     if (isNodeScript) {
       interpreter = undefined;
     } else if (isWindows) {
-      const wrapperPath = path.join(process.cwd(), 'scripts', 'wrapper.js');
+      const wrapperPath = getScriptPath('wrapper.js');
       script = process.execPath;
       args = [wrapperPath, service.name, service.script, ...(service.args || [])];
       interpreter = undefined;
@@ -383,7 +375,7 @@ export class ProcessManager {
       if (existing) {
         this.logger.debug(`Deleting existing process: ${name}`);
         await new Promise<void>((resolve, reject) => {
-          pm2.stop(name, (stopErr: Error | null) => {
+          pm2.stop(name, (_stopErr: Error | null) => {
             pm2.delete(name, (delErr: Error | null) => {
               if (delErr && !delErr.message.includes("doesn't exist")) {
                 reject(delErr);
