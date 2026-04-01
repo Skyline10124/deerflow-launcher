@@ -26,6 +26,19 @@ export function registerStartCommand(
         );
       }
 
+      // Validating service names
+      if (serviceNames.length > 0) {
+        const validNames = Object.values(ServiceName) as string[];
+        for (const name of serviceNames) {
+          if (!validNames.includes(name)) {
+            throw new CLIError(
+              ErrorCode.INVALID_ARGUMENT,
+              `Unknown service name: ${name}. Valid options are: ${validNames.join(', ')}`
+            );
+          }
+        }
+      }
+
       const spinner = ora({
         text: options.detach ? 'Starting services in background...' : 'Starting services...',
         spinner: 'dots'
@@ -76,6 +89,19 @@ export function registerStopCommand(
     .option('-f, --force', 'Force stop all services', false)
     .option('-t, --timeout <seconds>', 'Stop timeout', '30')
     .action(async (serviceNames: string[], options) => {
+      // Validating service names
+      if (serviceNames.length > 0) {
+        const validNames = Object.values(ServiceName) as string[];
+        for (const name of serviceNames) {
+          if (!validNames.includes(name)) {
+            throw new CLIError(
+              ErrorCode.INVALID_ARGUMENT,
+              `Unknown service name: ${name}. Valid options are: ${validNames.join(', ')}`
+            );
+          }
+        }
+      }
+
       if (options.force && serviceNames.length === 0) {
         const confirmed = await confirmDestructive('STOP ALL RUNNING SERVICES');
         if (!confirmed) {
@@ -133,6 +159,17 @@ export function registerStatusCommand(
     .option('-j, --json', 'Output as JSON', false)
     .option('-c, --compact', 'Compact output', false)
     .action(async (serviceName: string | undefined, options) => {
+      // Validating service name
+      if (serviceName) {
+        const validNames = Object.values(ServiceName) as string[];
+        if (!validNames.includes(serviceName)) {
+          throw new CLIError(
+            ErrorCode.INVALID_ARGUMENT,
+            `Unknown service name: ${serviceName}. Valid options are: ${validNames.join(', ')}`
+          );
+        }
+      }
+
       try {
         let statuses: ServiceStatusInfo[];
         
@@ -168,6 +205,19 @@ export function registerRestartCommand(
     .command('restart [services...]')
     .description('Restart DeerFlow services')
     .action(async (serviceNames: string[]) => {
+      // Validating service names
+      if (serviceNames.length > 0) {
+        const validNames = Object.values(ServiceName) as string[];
+        for (const name of serviceNames) {
+          if (!validNames.includes(name)) {
+            throw new CLIError(
+              ErrorCode.INVALID_ARGUMENT,
+              `Unknown service name: ${name}. Valid options are: ${validNames.join(', ')}`
+            );
+          }
+        }
+      }
+
       const spinner = ora({
         text: 'Restarting services...',
         spinner: 'dots'

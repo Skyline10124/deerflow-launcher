@@ -39,6 +39,17 @@ export function registerLogsCommand(
     .option('-l, --level <level>', 'Filter by log level')
     .option('-t, --time-format <format>', 'Time format: ISO, time, relative', 'time')
     .action(async (serviceName: string | undefined, options) => {
+      // Validating service name
+      if (serviceName && serviceName !== 'launcher') {
+        const validNames = Object.values(ServiceName) as string[];
+        if (!validNames.includes(serviceName)) {
+          throw new CLIError(
+            ErrorCode.INVALID_ARGUMENT,
+            `Unknown service name: ${serviceName}. Valid options are: launcher, ${validNames.join(', ')}`
+          );
+        }
+      }
+
       const logService = services.getLogService();
       const lines = parseInt(options.lines) || 50;
 
@@ -103,6 +114,17 @@ export function registerLogsCleanCommand(
     .description('Clear service logs')
     .option('-a, --all', 'Clear all logs', false)
     .action(async (serviceName: string | undefined, options) => {
+      // Validating service name
+      if (serviceName && serviceName !== 'launcher') {
+        const validNames = Object.values(ServiceName) as string[];
+        if (!validNames.includes(serviceName)) {
+          throw new CLIError(
+            ErrorCode.INVALID_ARGUMENT,
+            `Unknown service name: ${serviceName}. Valid options are: launcher, ${validNames.join(', ')}`
+          );
+        }
+      }
+
       const logService = services.getLogService();
 
       try {
