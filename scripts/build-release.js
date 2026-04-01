@@ -74,15 +74,16 @@ Usage:
   ./deerflow-launcher${platform.ext} --help
 
 Commands:
-  deerflow start [services...]    Start services
-  deerflow stop [services...]     Stop services
-  deerflow status [service]       Show service status
-  deerflow logs [service]         View service logs
-  deerflow doctor                 Run environment diagnostics
-  deerflow config <command>       Manage configuration
+  deerflow-launcher start [services...]    Start services
+  deerflow-launcher stop [services...]     Stop services
+  deerflow-launcher status [service]       Show service status
+  deerflow-launcher logs [service]         View service logs
+  deerflow-launcher doctor                 Run environment diagnostics
+  deerflow-launcher config <command>       Manage configuration
 
 For more information, visit:
 https://github.com/deerflow/deer-flow
+https://github.com/Skyline10124/deerflow-launcher
 
 Requirements:
   - Python 3.12+
