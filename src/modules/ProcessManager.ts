@@ -111,8 +111,8 @@ export class ProcessManager {
           await this.deleteProcess(proc.name);
         }
       }
-    } catch {
-      // Ignore cleanup errors
+    } catch (error) {
+      this.logger.debug(`Failed to cleanup stale processes: ${error}`);
     }
   }
 

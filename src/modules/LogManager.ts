@@ -51,12 +51,11 @@ export class LogManager {
     return files.map(f => {
       const filePath = path.join(this.logDir, f);
       const stats = fs.statSync(filePath);
-      const content = fs.readFileSync(filePath, 'utf-8');
       
       return {
         file: f,
         size: stats.size,
-        lines: content.split('\n').filter(l => l.trim()).length,
+        lines: 0, // Optimization: Removed synchronous line counting
         modified: stats.mtime
       };
     });
@@ -144,6 +143,11 @@ export class LogManager {
       if (!fs.existsSync(logFile)) return;
 
       const stats = fs.statSync(logFile);
+      
+      if (stats.size < lastSize) {
+        lastSize = 0;
+        lastPosition = 0;
+      }
       
       if (stats.size > lastSize) {
         const fd = fs.openSync(logFile, 'r');

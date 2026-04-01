@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import { Launcher, LauncherOptions } from './core/Launcher';
 import { LogLevel, parseLogLevel } from './modules/Logger';
 import { ProcessManager } from './modules/ProcessManager';
+import { getDeerFlowPath } from './utils/env';
 
 const DEBUG_MODE = process.env.DEBUG_LAUNCHER === 'true';
 const CLEAN_MODE = process.argv.includes('--clean') || process.argv.includes('-c');
@@ -14,44 +15,6 @@ async function cleanupAllProcesses(): Promise<void> {
   await pm.killAllManagedProcesses();
   await pm.disconnect();
   console.log('Cleanup completed.');
-}
-
-function getDeerFlowPath(): string {
-  const envPath = process.env.DEERFLOW_PATH;
-  if (envPath) {
-    if (!fs.existsSync(envPath)) {
-      console.error(`Error: DEERFLOW_PATH environment variable points to non-existent path: ${envPath}`);
-      process.exit(1);
-    }
-    return envPath;
-  }
-
-  let currentPath = process.cwd();
-  
-  while (currentPath !== path.dirname(currentPath)) {
-    const configYaml = path.join(currentPath, 'config.example.yaml');
-    if (fs.existsSync(configYaml)) {
-      return currentPath;
-    }
-    currentPath = path.dirname(currentPath);
-  }
-
-  const rootConfigYaml = path.join(currentPath, 'config.example.yaml');
-  if (fs.existsSync(rootConfigYaml)) {
-    return currentPath;
-  }
-
-  console.error('Error: Could not find DeerFlow project.');
-  console.error('');
-  console.error('Please either:');
-  console.error('  1. Set DEERFLOW_PATH environment variable to the DeerFlow directory');
-  console.error('  2. Run this launcher from the DeerFlow directory');
-  console.error('  3. Run this launcher from a subdirectory of DeerFlow');
-  console.error('');
-  console.error('Example:');
-  console.error('  export DEERFLOW_PATH=/path/to/deer-flow');
-  console.error('  npm start');
-  process.exit(1);
 }
 
 function getLogLevel(): LogLevel {
@@ -67,7 +30,14 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  const deerflowPath = getDeerFlowPath();
+  let deerflowPath: string;
+  try {
+    deerflowPath = getDeerFlowPath();
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
+  
   const logDir = path.join(process.cwd(), 'logs');
   const logLevel = getLogLevel();
   

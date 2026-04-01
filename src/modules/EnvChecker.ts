@@ -92,17 +92,16 @@ export class EnvChecker {
 
   /** 执行 shell 命令并返回输出 */
   private runCommand(command: string): string {
-    try {
-      const result = spawnSync(command, [], {
-        shell: true,
-        encoding: 'utf-8',
-        timeout: 5000,
-        windowsHide: true
-      });
-      return (result.stdout || '').trim();
-    } catch {
-      return '';
+    const result = spawnSync(command, [], {
+      shell: true,
+      encoding: 'utf-8',
+      timeout: 5000,
+      windowsHide: true
+    });
+    if (result.error) {
+      throw result.error;
     }
+    return (result.stdout || '').trim();
   }
 
   /** 检查单个依赖项 */

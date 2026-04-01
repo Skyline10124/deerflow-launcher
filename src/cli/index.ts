@@ -19,43 +19,7 @@ import { Logger, getLogger, setDefaultLogger } from '../modules/Logger';
 import { EnvDoctor } from '../modules/EnvDoctor';
 import { SERVICE_START_ORDER, SERVICE_PORTS, getServiceDefinitions } from '../config/services';
 import { readFileSync, readdirSync, unlinkSync, existsSync } from 'fs';
-
-/**
- * 查找 DeerFlow 项目根目录
- * 按以下顺序查找:
- * 1. DEERFLOW_PATH 环境变量
- * 2. 当前目录及其父目录 (包含 backend 和 frontend 文件夹)
- * 3. 当前工作目录的父目录
- */
-function findDeerFlowRoot(): string {
-  const envPath = process.env.DEERFLOW_PATH;
-  if (envPath && existsSync(envPath)) {
-    return envPath;
-  }
-
-  let currentPath = process.cwd();
-  
-  while (currentPath !== dirname(currentPath)) {
-    if (existsSync(join(currentPath, 'backend')) && 
-        existsSync(join(currentPath, 'frontend'))) {
-      return currentPath;
-    }
-    currentPath = dirname(currentPath);
-  }
-
-  const parentDir = dirname(process.cwd());
-  if (existsSync(join(parentDir, 'backend')) && 
-      existsSync(join(parentDir, 'frontend'))) {
-    return parentDir;
-  }
-
-  return process.cwd();
-}
-
-/** 获取 DeerFlow 项目根目录路径 */
-function getDeerFlowPath(): string {
-  return findDeerFlowRoot();
-}
+import { getDeerFlowPath } from '../utils/env';
 
 /** 获取日志目录路径 (launcher/logs) */
 function getLogDir(): string {
@@ -80,72 +44,39 @@ class LogServiceAdapter implements ILogService {
     follow?: boolean;
     level?: string;
   }): Promise<string[]> {
-    const lines = options?.lines || 50;
-    const logFile = this.logManager.getLogFilePath(service);
-    
+    const filter: any = { service };
+    if (options?.lines) filter.lines = options.lines;
+    if (options?.level) filter.level = options.level.toUpperCase();
+
     try {
-      const content = fs.readFileSync(logFile, 'utf-8');
-      const allLines = content.split('\n').filter(l => l.trim());
-      
-      if (options?.level) {
-        const level = options.level.toUpperCase();
-        return allLines
-          .filter(l => l.includes(`[${level}]`))
-          .slice(-lines);
-      }
-      
-      return allLines.slice(-lines);
+      const entries = this.logManager.readLogs(filter);
+      return entries.map(e => e.raw);
     } catch {
       return [];
     }
   }
 
   watchLogs(service: ServiceName | 'launcher', callback: (line: string) => void): () => void {
-    const logFile = this.logManager.getLogFilePath(service);
-    
-    if (!fs.existsSync(logFile)) {
-      return () => {};
-    }
-
-    let lastSize = fs.statSync(logFile).size;
-    let lastLineCount = fs.readFileSync(logFile, 'utf-8').split('\n').filter(l => l.trim()).length;
-
-    const timer = setInterval(() => {
-      try {
-        if (!fs.existsSync(logFile)) return;
-        
-        const stats = fs.statSync(logFile);
-        if (stats.size !== lastSize) {
-          const content = fs.readFileSync(logFile, 'utf-8');
-          const lines = content.split('\n').filter(l => l.trim());
-          
-          for (let i = lastLineCount; i < lines.length; i++) {
-            callback(lines[i]);
-          }
-          
-          lastLineCount = lines.length;
-          lastSize = stats.size;
-        }
-      } catch {}
-    }, 200);
-
-    return () => clearInterval(timer);
+    return this.logManager.follow(service, (entry) => {
+      callback(entry.raw);
+    });
   }
 
   async clearLogs(service: ServiceName | 'launcher'): Promise<void> {
     const logFile = this.logManager.getLogFilePath(service);
     try {
-      fs.writeFileSync(logFile, '');
-    } catch {}
+      if (fs.existsSync(logFile)) {
+        fs.writeFileSync(logFile, '');
+      }
+    } catch (error) {
+      console.error(`Failed to clear log for ${service}:`, error);
+    }
   }
 
   async clearAllLogs(): Promise<void> {
     const services: (ServiceName | 'launcher')[] = [
       'launcher',
-      ServiceName.LANGGRAPH,
-      ServiceName.GATEWAY,
-      ServiceName.FRONTEND,
-      ServiceName.NGINX
+      ...SERVICE_START_ORDER
     ];
     for (const service of services) {
       await this.clearLogs(service);

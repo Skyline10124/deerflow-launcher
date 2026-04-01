@@ -79,10 +79,8 @@ export function getServiceDefinitions(deerflowPath: string, options?: ServiceOpt
     },
     {
       name: ServiceName.NGINX,
-      script: process.platform === 'win32' ? 'nginx' : 'nginx',
-      args: process.platform === 'win32' 
-        ? ['-c', path.join(deerflowPath, 'nginx.conf')]
-        : ['-c', path.join(deerflowPath, 'nginx.conf')],
+      script: 'nginx',
+      args: ['-c', path.join(deerflowPath, 'nginx.conf')],
       cwd: deerflowPath,
       port: SERVICE_PORTS[ServiceName.NGINX],
       timeout: SERVICE_TIMEOUTS[ServiceName.NGINX],
