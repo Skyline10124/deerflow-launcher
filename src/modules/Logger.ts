@@ -16,7 +16,30 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 import chalk from 'chalk';
+
+/**
+ * 检测是否运行在 pkg 打包环境中
+ * Check if running in pkg packaged environment
+ */
+function isPkgEnvironment(): boolean {
+  return typeof (process as unknown as Record<string, unknown>).pkg !== 'undefined';
+}
+
+/**
+ * 获取默认日志目录
+ * Get default log directory
+ * 
+ * pkg 环境使用 ~/.deerflow/logs，开发环境使用 cwd/logs
+ * Uses ~/.deerflow/logs in pkg, cwd/logs in development
+ */
+function getDefaultLogDir(): string {
+  if (isPkgEnvironment()) {
+    return path.join(os.homedir(), '.deerflow', 'logs');
+  }
+  return path.join(process.cwd(), 'logs');
+}
 
 /**
  * 日志级别枚举
@@ -100,7 +123,7 @@ export class Logger {
   constructor(module: string, options: LoggerOptions = {}) {
     this.module = module;
     this.level = options.level ?? LogLevel.INFO;
-    this.logDir = options.logDir ?? path.join(process.cwd(), 'logs');
+    this.logDir = options.logDir ?? getDefaultLogDir();
     this.enableConsole = options.enableConsole ?? true;
     this.enableFile = options.enableFile ?? true;
     this.rotationConfig = {

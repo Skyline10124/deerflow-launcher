@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import * as fs from 'fs';
+import * as os from 'os';
 import { dirname, join } from 'path';
 import {
   registerServiceCommands,
@@ -20,8 +21,25 @@ import { SERVICE_START_ORDER, getServiceDefinitions } from '../config/services';
 import { existsSync } from 'fs';
 import { getDeerFlowPath } from '../utils/env';
 
-/** 获取日志目录路径 (launcher/logs) */
+/**
+ * 检测是否运行在 pkg 打包环境中
+ * Check if running in pkg packaged environment
+ */
+function isPkgEnvironment(): boolean {
+  return typeof (process as unknown as Record<string, unknown>).pkg !== 'undefined';
+}
+
+/**
+ * 获取日志目录路径
+ * Get log directory path
+ * 
+ * pkg 环境使用 ~/.deerflow/logs，开发环境使用 launcher/logs
+ * Uses ~/.deerflow/logs in pkg, launcher/logs in development
+ */
 function getLogDir(): string {
+  if (isPkgEnvironment()) {
+    return join(os.homedir(), '.deerflow', 'logs');
+  }
   const cliDir = __dirname;
   const launcherDir = dirname(dirname(dirname(cliDir)));
   return join(launcherDir, 'logs');
