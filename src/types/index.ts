@@ -159,3 +159,30 @@ export const CONFIG_FILE_MAPPINGS: ConfigFileMapping[] = [
   { template: 'extensions_config.example.json', target: 'extensions_config.json' },
   { template: 'docker/nginx/nginx.local.conf', target: 'nginx.conf' }
 ];
+
+export interface ProcessConfig {
+  name: string;
+  script: string;
+  args?: string[];
+  cwd: string;
+  env?: Record<string, string>;
+  out_file?: string;
+  error_file?: string;
+  merge_logs?: boolean;
+  time?: boolean;
+  max_restarts?: number;
+  min_uptime?: number;
+  max_memory_restart?: string;
+}
+
+export interface ProcessInfo {
+  name: string;
+  pid: number;
+  status: string;
+  pm_id: number;
+  monit?: {
+    memory: number;
+    cpu: number;
+  };
+}
+

@@ -5,6 +5,7 @@ import type { IServiceManager, ServiceStatusInfo } from '../../../core/interface
 import { CLIError, ErrorCode } from '../../utils/errors';
 import { formatServiceTable, formatSimpleList } from '../../components/ServiceTable';
 import { confirmDestructive } from '../../components/ConfirmPrompt';
+import { ServiceName } from '../../../types';
 
 export function registerStartCommand(
   program: Command, 
