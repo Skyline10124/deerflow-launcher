@@ -8,11 +8,11 @@ const NGINX_REQUIRED_DIRS = ['temp/client_body_temp', 'temp/proxy_temp', 'temp/f
 export class ConfigInitializer {
   private logger: Logger;
   private deerflowPath: string;
-  private launcherPath: string;
+  private logDir: string;
 
-  constructor(deerflowPath: string) {
+  constructor(deerflowPath: string, logDir?: string) {
     this.deerflowPath = deerflowPath;
-    this.launcherPath = path.dirname(path.dirname(path.dirname(__dirname)));
+    this.logDir = logDir || path.join(process.cwd(), 'logs');
     this.logger = getLogger('ConfigInit');
   }
 
@@ -90,11 +90,11 @@ export class ConfigInitializer {
       let content = fs.readFileSync(templatePath, 'utf-8');
       
       if (targetName === 'nginx.conf') {
-        const logDir = path.join(this.launcherPath, 'logs').replace(/\\/g, '/');
-        content = content.replace(/logs\/nginx\.log/g, `${logDir}/nginx.log`);
-        content = content.replace(/logs\/nginx-access\.log/g, `${logDir}/nginx.log`);
-        content = content.replace(/logs\/nginx-error\.log/g, `${logDir}/nginx.log`);
-        content = content.replace(/logs\/nginx\.pid/g, `${logDir}/nginx.pid`);
+        const normalizedLogDir = this.logDir.replace(/\\/g, '/');
+        content = content.replace(/logs\/nginx\.log/g, `${normalizedLogDir}/nginx.log`);
+        content = content.replace(/logs\/nginx-access\.log/g, `${normalizedLogDir}/nginx.log`);
+        content = content.replace(/logs\/nginx-error\.log/g, `${normalizedLogDir}/nginx.log`);
+        content = content.replace(/logs\/nginx\.pid/g, `${normalizedLogDir}/nginx.pid`);
       }
       
       fs.writeFileSync(targetPath, content, 'utf-8');

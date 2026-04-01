@@ -56,28 +56,35 @@ export class HealthChecker {
 
       socket.setTimeout(timeout);
 
-      socket.on('connect', () => {
+      const cleanup = () => {
+        socket.removeAllListeners();
         socket.destroy();
+      };
+
+      socket.once('connect', () => {
+        cleanup();
         resolve(true);
       });
 
-      socket.on('timeout', () => {
-        socket.destroy();
+      socket.once('timeout', () => {
+        cleanup();
         resolve(false);
       });
 
-      socket.on('error', () => {
-        socket.destroy();
+      socket.once('error', () => {
+        cleanup();
         resolve(false);
       });
 
-      socket.on('close', () => {
+      socket.once('close', () => {
+        cleanup();
         resolve(false);
       });
 
       try {
         socket.connect(port, host);
       } catch {
+        cleanup();
         resolve(false);
       }
     });

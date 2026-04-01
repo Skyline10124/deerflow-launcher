@@ -187,6 +187,8 @@ export class EnvDoctor {
         windowsHide: true
       });
 
+      if (result.error) throw result.error;
+
       const output = (result.stdout || result.stderr || '').trim();
       const versionMatch = output.match(/\d+\.\d+\.\d+|\d+\.\d+/);
       const version = versionMatch ? versionMatch[0] : '';
