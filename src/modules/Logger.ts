@@ -16,28 +16,16 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import * as os from 'os';
 import chalk from 'chalk';
-
-/**
- * 检测是否运行在 pkg 打包环境中
- * Check if running in pkg packaged environment
- */
-function isPkgEnvironment(): boolean {
-  return typeof (process as unknown as Record<string, unknown>).pkg !== 'undefined';
-}
 
 /**
  * 获取默认日志目录
  * Get default log directory
  * 
- * pkg 环境使用 ~/.deerflow/logs，开发环境使用 cwd/logs
- * Uses ~/.deerflow/logs in pkg, cwd/logs in development
+ * 日志目录在当前工作目录下的 logs 文件夹
+ * Log directory is the logs folder under current working directory
  */
 function getDefaultLogDir(): string {
-  if (isPkgEnvironment()) {
-    return path.join(os.homedir(), '.deerflow', 'logs');
-  }
   return path.join(process.cwd(), 'logs');
 }
 

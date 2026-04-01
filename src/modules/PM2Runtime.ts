@@ -16,9 +16,17 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-import * as pm2 from 'pm2';
 import { Logger, getLogger } from './Logger';
 import { PM2Error, PM2ErrorCodes } from './PM2ErrorHandler';
+
+/**
+ * PM2 模块
+ * PM2 module
+ * 
+ * 使用 require 导入以兼容 pkg 打包
+ * Use require for pkg compatibility
+ */
+const pm2 = require('pm2');
 
 /**
  * PM2 运行时配置选项

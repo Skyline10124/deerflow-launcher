@@ -8,13 +8,21 @@
  * @module ProcessMonitor
  */
 
-import * as pm2 from 'pm2';
-import type { ProcessDescription } from 'pm2';
 import { execSync } from 'child_process';
 import Table from 'cli-table3';
 import chalk from 'chalk';
 import { Logger, getLogger } from './Logger';
 import { ServiceName } from '../types';
+
+/**
+ * PM2 模块
+ * PM2 module
+ * 
+ * 使用 require 导入以兼容 pkg 打包
+ * Use require for pkg compatibility
+ */
+const pm2 = require('pm2');
+import type { ProcessDescription } from 'pm2';
 
 /**
  * 进程状态接口

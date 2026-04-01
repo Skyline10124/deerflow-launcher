@@ -10,17 +10,25 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
-import * as pm2 from 'pm2';
-import type { Proc, ProcessDescription } from 'pm2';
 import { Logger, getLogger } from './Logger';
 import { HealthChecker } from './HealthChecker';
-import { PM2Runtime, getScriptPath } from './PM2Runtime';
+import { PM2Runtime } from './PM2Runtime';
 import {
   ServiceDefinition,
   ServiceInstance,
   ServiceStatus,
   ServiceName
 } from '../types';
+
+/**
+ * PM2 模块
+ * PM2 module
+ * 
+ * 使用 require 导入以兼容 pkg 打包
+ * Use require for pkg compatibility
+ */
+const pm2 = require('pm2');
+import type { Proc, ProcessDescription } from 'pm2';
 
 /**
  * 托管的服务名称列表
@@ -259,37 +267,20 @@ export class ProcessManager {
    * @returns PM2 配置对象 / PM2 configuration object
    */
   private buildPM2Config(service: ServiceDefinition): PM2ProcessConfig {
-    // 确保日志目录存在 / Ensure log directory exists
     if (!fs.existsSync(this.logDir)) {
       fs.mkdirSync(this.logDir, { recursive: true });
     }
 
-    // 判断是否为 Node.js 脚本 / Check if it's a Node.js script
     const isNodeScript = service.script.endsWith('.js') || 
                          service.script.endsWith('.ts') ||
                          service.script.endsWith('.mjs');
     
     const isWindows = process.platform === 'win32';
-    // Windows 和 Unix 的空设备路径 / Null device path for Windows and Unix
     const nullDevice = isWindows ? '\\\\.\\NUL' : '/dev/null';
     
-    let script = service.script;
-    let args = service.args || [];
-    let interpreter: string | undefined;
-    
-    if (isNodeScript) {
-      // Node.js 脚本使用默认解释器 / Node.js scripts use default interpreter
-      interpreter = undefined;
-    } else if (isWindows) {
-      // Windows 下非 Node 脚本使用包装器 / Non-Node scripts use wrapper on Windows
-      const wrapperPath = getScriptPath('wrapper.js');
-      script = process.execPath;
-      args = [wrapperPath, service.name, service.script, ...(service.args || [])];
-      interpreter = undefined;
-    } else {
-      // Unix 下直接执行 / Direct execution on Unix
-      interpreter = 'none';
-    }
+    const script = service.script;
+    const args = service.args || [];
+    const interpreter: string | undefined = isNodeScript ? undefined : 'none';
     
     const config: PM2ProcessConfig = {
       name: service.name,
@@ -299,16 +290,15 @@ export class ProcessManager {
       interpreter: interpreter,
       exec_mode: 'fork',
       instances: 1,
-      autorestart: false,  // 禁用自动重启，由 launcher 控制 / Disable auto restart, controlled by launcher
+      autorestart: false,
       max_restarts: 0,
-      min_uptime: 10000,   // 最小运行时间 10 秒 / Minimum uptime 10 seconds
+      min_uptime: 10000,
       log_file: path.join(this.logDir, `${service.name}.log`),
       out_file: nullDevice,
       error_file: nullDevice,
       merge_logs: true,
-      time: isWindows && !isNodeScript ? false : true,
+      time: true,
       env: service.env,
-      // Windows 特定配置 / Windows specific configuration
       ...(isWindows && !isNodeScript ? { 
         windowsHide: true,
         kill_timeout: 3000
@@ -394,6 +384,14 @@ export class ProcessManager {
       } else {
         instance.status = ServiceStatus.FAILED;
         instance.error = healthResult.error || 'Health check failed';
+        
+        const logError = await this.detectConfigError(service.name);
+        if (logError) {
+          instance.error = logError;
+          this.logger.error(`${service.name} configuration error detected`);
+          this.logger.error(logError);
+        }
+        
         throw new Error(`${service.name} failed to start: ${instance.error}`);
       }
     } catch (error) {
@@ -404,6 +402,60 @@ export class ProcessManager {
     }
 
     return instance;
+  }
+
+  /**
+   * 检测服务日志中的配置错误
+   * Detect configuration errors in service logs
+   * 
+   * @param serviceName - 服务名称 / Service name
+   * @returns 错误信息或 null / Error message or null
+   */
+  private async detectConfigError(serviceName: string): Promise<string | null> {
+    const logFile = path.join(this.logDir, `${serviceName}.log`);
+    
+    if (!fs.existsSync(logFile)) {
+      return null;
+    }
+    
+    try {
+      const content = fs.readFileSync(logFile, 'utf-8');
+      const lines = content.split('\n').slice(-100).join('\n');
+      
+      if (lines.includes('ValidationError') && lines.includes('AppConfig')) {
+        const modelMatch = lines.match(/(\w+)\s+Input should be a valid list/);
+        const fieldMatch = lines.match(/for\s+(\w+)\s*\n/);
+        
+        const field = fieldMatch ? fieldMatch[1] : (modelMatch ? modelMatch[1] : 'unknown');
+        
+        return (
+          `Configuration validation error in config.yaml:\n` +
+          `  Field '${field}' is invalid or missing.\n` +
+          `  Please check your config.yaml file and ensure all required fields are set.\n` +
+          `  Run 'deerflow-launcher config show' to view current configuration.`
+        );
+      }
+      
+      if (lines.includes('FileNotFoundError') && lines.includes('config.yaml')) {
+        return (
+          `Configuration file not found.\n` +
+          `  Please ensure config.yaml exists in the DeerFlow directory.\n` +
+          `  Run 'deerflow-launcher config init' to create it from template.`
+        );
+      }
+      
+      if (lines.includes('WinError 10013')) {
+        return (
+          `Port is already in use or access denied.\n` +
+          `  Another process may be using the required port.\n` +
+          `  Try stopping all services with 'deerflow-launcher svc stop' and restart.`
+        );
+      }
+      
+      return null;
+    } catch {
+      return null;
+    }
   }
 
   /**

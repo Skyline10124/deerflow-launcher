@@ -71,9 +71,21 @@ export function registerStartCommand(
           throw error;
         }
         
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        
+        if (errorMsg.includes('ValidationError') || errorMsg.includes('AppConfig')) {
+          console.log(chalk.red('\nConfiguration Error:'));
+          console.log(chalk.yellow('  Your config.yaml has validation errors.'));
+          console.log(chalk.gray('  Please check the following:'));
+          console.log(chalk.gray('  - Ensure all required fields are filled'));
+          console.log(chalk.gray('  - Check field types (e.g., models should be a list)'));
+          console.log(chalk.gray('\nRun "deerflow-launcher config show" to view current configuration.'));
+          console.log(chalk.gray('Run "deerflow-launcher logs langgraph" for detailed error logs.'));
+        }
+        
         throw new CLIError(
           ErrorCode.SERVICE_START_FAILED,
-          `Failed to start services: ${error instanceof Error ? error.message : String(error)}`,
+          `Failed to start services: ${errorMsg}`,
           { cause: error instanceof Error ? error : undefined }
         );
       }

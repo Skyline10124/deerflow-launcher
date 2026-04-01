@@ -1,8 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import * as fs from 'fs';
-import * as os from 'os';
-import { dirname, join } from 'path';
+import { join } from 'path';
 import {
   registerServiceCommands,
   registerLogsCommands,
@@ -17,32 +16,21 @@ import { ProcessManager } from '../modules/ProcessManager';
 import { ProcessMonitor, ProcessStatus } from '../modules/ProcessMonitor';
 import { LogManager } from '../modules/LogManager';
 import { Logger, setDefaultLogger } from '../modules/Logger';
+import { ConfigInitializer } from '../modules/ConfigInitializer';
 import { SERVICE_START_ORDER, getServiceDefinitions } from '../config/services';
 import { existsSync } from 'fs';
 import { getDeerFlowPath } from '../utils/env';
 
 /**
- * 检测是否运行在 pkg 打包环境中
- * Check if running in pkg packaged environment
- */
-function isPkgEnvironment(): boolean {
-  return typeof (process as unknown as Record<string, unknown>).pkg !== 'undefined';
-}
-
-/**
  * 获取日志目录路径
  * Get log directory path
  * 
- * pkg 环境使用 ~/.deerflow/logs，开发环境使用 launcher/logs
- * Uses ~/.deerflow/logs in pkg, launcher/logs in development
+ * 日志目录在 DeerFlow 项目目录下的 logs 文件夹
+ * Log directory is the logs folder under DeerFlow project directory
  */
 function getLogDir(): string {
-  if (isPkgEnvironment()) {
-    return join(os.homedir(), '.deerflow', 'logs');
-  }
-  const cliDir = __dirname;
-  const launcherDir = dirname(dirname(dirname(cliDir)));
-  return join(launcherDir, 'logs');
+  const deerflowPath = getDeerFlowPath();
+  return join(deerflowPath, 'logs');
 }
 
 /**
@@ -176,6 +164,30 @@ class ServiceManagerAdapter implements IServiceManager {
     timeout?: number;
     langsmith?: boolean;
   }): Promise<void> {
+    const deerflowPath = getDeerFlowPath();
+    
+    const configInitializer = new ConfigInitializer(deerflowPath, this.logDir);
+    if (!configInitializer.validateDeerFlowPath()) {
+      throw new CLIError(
+        ErrorCode.CONFIG_INVALID,
+        'Invalid DeerFlow path',
+        { suggestion: 'Please ensure DeerFlow repository is properly cloned and config.example.yaml exists' }
+      );
+    }
+    
+    const initResult = await configInitializer.initialize();
+    if (!initResult.success) {
+      throw new CLIError(
+        ErrorCode.CONFIG_PARSE_ERROR,
+        `Failed to initialize config files: ${initResult.failed.join(', ')}`,
+        { suggestion: 'Check if template files exist and you have write permissions' }
+      );
+    }
+    
+    if (initResult.created.length > 0) {
+      this.logger.info(`Created config files: ${initResult.created.join(', ')}`);
+    }
+
     try {
       await this.processManager.connect();
     } catch (error) {
@@ -187,7 +199,7 @@ class ServiceManagerAdapter implements IServiceManager {
       ? SERVICE_START_ORDER.filter((s): s is ServiceName => options.only?.includes(s) ?? false)
       : SERVICE_START_ORDER;
 
-    const serviceDefs = getServiceDefinitions(getDeerFlowPath(), { langsmith: options?.langsmith });
+    const serviceDefs = getServiceDefinitions(deerflowPath, { langsmith: options?.langsmith });
     const dependencies = new Map<ServiceName, ServiceInstance>();
     
     for (const name of services) {
