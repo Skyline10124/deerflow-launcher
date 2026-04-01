@@ -397,15 +397,18 @@ export class ProcessManager {
     this.logger.info('Killing all managed processes...');
     try {
       const list = await this.listProcesses();
-      for (const proc of list) {
+      
+      const killPromises = list.map(async (proc) => {
         const procName = proc.name;
         if (procName && (MANAGED_SERVICE_NAMES as readonly string[]).includes(procName)) {
           this.logger.debug(`Killing process: ${procName}`);
-          await new Promise<void>((resolve) => {
+          return new Promise<void>((resolve) => {
             pm2.delete(procName, () => resolve());
           });
         }
-      }
+      });
+      
+      await Promise.all(killPromises);
     } catch {
       // Ignore errors
     }
