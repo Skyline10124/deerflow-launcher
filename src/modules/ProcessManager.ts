@@ -12,7 +12,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { Logger, getLogger } from './Logger';
 import { HealthChecker } from './HealthChecker';
-import { PM2Runtime } from './PM2Runtime';
+import { PM2Runtime, getScriptPath } from './PM2Runtime';
 import {
   ServiceDefinition,
   ServiceInstance,
@@ -78,6 +78,8 @@ export interface PM2ProcessConfig {
   time?: boolean;
   /** 环境变量 / Environment variables */
   env?: Record<string, string>;
+  windowsHide?: boolean;
+  kill_timeout?: number;
 }
 
 /**
@@ -276,11 +278,22 @@ export class ProcessManager {
                          service.script.endsWith('.mjs');
     
     const isWindows = process.platform === 'win32';
-    const nullDevice = isWindows ? '\\\\.\\NUL' : '/dev/null';
     
-    const script = service.script;
-    const args = service.args || [];
-    const interpreter: string | undefined = isNodeScript ? undefined : 'none';
+    let script = service.script;
+    let args = service.args || [];
+    let interpreter: string | undefined;
+    
+    if (isNodeScript) {
+      interpreter = undefined;
+    } else if (isWindows) {
+      script = getScriptPath('wrapper.js');
+      args = [service.name, service.script, ...args];
+      interpreter = undefined;
+    } else {
+      interpreter = 'none';
+    }
+    
+    const logFile = path.join(this.logDir, `${service.name}.log`);
     
     const config: PM2ProcessConfig = {
       name: service.name,
@@ -293,9 +306,9 @@ export class ProcessManager {
       autorestart: false,
       max_restarts: 0,
       min_uptime: 10000,
-      log_file: path.join(this.logDir, `${service.name}.log`),
-      out_file: nullDevice,
-      error_file: nullDevice,
+      log_file: logFile,
+      out_file: logFile,
+      error_file: logFile,
       merge_logs: true,
       time: true,
       env: service.env,

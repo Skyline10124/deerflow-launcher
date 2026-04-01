@@ -1,15 +1,10 @@
-const { spawn } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const { spawn, spawnSync } = require('child_process');
 
 const serviceName = process.argv[2];
 const command = process.argv[3];
 const args = process.argv.slice(4);
-
-function escapeShellArg(arg) {
-  if (/^[a-zA-Z0-9_\-\.\/\:]+$/.test(arg)) {
-    return arg;
-  }
-  return `"${arg.replace(/"/g, '""')}"`;
-}
 
 function formatTimestamp() {
   return new Date().toISOString();
@@ -20,14 +15,87 @@ function formatLine(line) {
   return `[${timestamp}] [${serviceName}] ${line}`;
 }
 
-const escapedArgs = args.map(escapeShellArg);
-const fullCommand = escapedArgs.length > 0 
-  ? `${command} ${escapedArgs.join(' ')}`
-  : command;
+function resolveCommand(commandName) {
+  if (path.isAbsolute(commandName) || commandName.includes('\\') || commandName.includes('/')) {
+    return commandName;
+  }
 
-const proc = spawn(fullCommand, [], {
+  const result = spawnSync('where.exe', [commandName], {
+    encoding: 'utf-8',
+    windowsHide: true
+  });
+
+  if (result.status !== 0) {
+    return commandName;
+  }
+
+  return result.stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find(Boolean) || commandName;
+}
+
+function resolveWindowsNodeShim(commandPath) {
+  if (!fs.existsSync(commandPath)) {
+    return null;
+  }
+
+  try {
+    const content = fs.readFileSync(commandPath, 'utf-8');
+    const match =
+      content.match(/"%~dp0\\([^"]+)"\s+%\*/i) ||
+      content.match(/"%dp0%\\([^"]+)"\s+%\*/i);
+
+    if (!match) {
+      return null;
+    }
+
+    const shimRelativePath = match[1].replace(/\\/g, path.sep);
+    const shimPath = path.resolve(path.dirname(commandPath), shimRelativePath);
+
+    return fs.existsSync(shimPath) ? shimPath : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildSpawnTarget(commandName, commandArgs) {
+  if (process.platform !== 'win32') {
+    return { command: commandName, args: commandArgs };
+  }
+
+  const resolvedCommand = resolveCommand(commandName);
+  const extension = path.extname(resolvedCommand).toLowerCase();
+
+  if (extension === '.cmd' || extension === '.bat') {
+    const nodeShimScript = resolveWindowsNodeShim(resolvedCommand);
+    if (nodeShimScript) {
+      return {
+        command: process.execPath,
+        args: [nodeShimScript, ...commandArgs]
+      };
+    }
+
+    const executablePath = `${resolvedCommand.slice(0, -extension.length)}.exe`;
+    if (fs.existsSync(executablePath)) {
+      return {
+        command: executablePath,
+        args: commandArgs
+      };
+    }
+  }
+
+  return {
+    command: resolvedCommand,
+    args: commandArgs
+  };
+}
+
+const target = buildSpawnTarget(command, args);
+
+const proc = spawn(target.command, target.args, {
   stdio: ['inherit', 'pipe', 'pipe'],
-  shell: true,
+  shell: false,
   windowsHide: true,
   env: { ...process.env, FORCE_COLOR: '0', NO_COLOR: '1' }
 });

@@ -30,6 +30,10 @@ export interface ServiceOptions {
   langsmith?: boolean;
 }
 
+function getPnpmCommand(): string {
+  return process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
+}
+
 export function getServiceDefinitions(deerflowPath: string, options?: ServiceOptions): ServiceDefinition[] {
   const langgraphArgs = ['run', 'langgraph', 'dev', '--port', String(SERVICE_PORTS[ServiceName.LANGGRAPH])];
   
@@ -67,7 +71,7 @@ export function getServiceDefinitions(deerflowPath: string, options?: ServiceOpt
     },
     {
       name: ServiceName.FRONTEND,
-      script: 'pnpm',
+      script: getPnpmCommand(),
       args: ['dev'],
       cwd: path.join(deerflowPath, 'frontend'),
       port: SERVICE_PORTS[ServiceName.FRONTEND],

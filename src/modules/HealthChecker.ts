@@ -51,42 +51,28 @@ export class HealthChecker {
 
   private tryConnect(host: string, port: number): Promise<boolean> {
     return new Promise((resolve) => {
-      const socket = new net.Socket();
       const timeout = 2000;
-
-      socket.setTimeout(timeout);
-
-      const cleanup = () => {
-        socket.removeAllListeners();
+      
+      const socket = net.connect({
+        port: port,
+        host: host,
+        family: 4
+      }, () => {
         socket.destroy();
-      };
-
-      socket.once('connect', () => {
-        cleanup();
         resolve(true);
       });
 
+      socket.setTimeout(timeout);
+
       socket.once('timeout', () => {
-        cleanup();
+        socket.destroy();
         resolve(false);
       });
 
       socket.once('error', () => {
-        cleanup();
+        socket.destroy();
         resolve(false);
       });
-
-      socket.once('close', () => {
-        cleanup();
-        resolve(false);
-      });
-
-      try {
-        socket.connect(port, host);
-      } catch {
-        cleanup();
-        resolve(false);
-      }
     });
   }
 
