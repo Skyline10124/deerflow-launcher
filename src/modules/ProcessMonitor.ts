@@ -1,4 +1,4 @@
-import PM2 from 'pm2';
+import * as pm2 from 'pm2';
 import { execSync } from 'child_process';
 import Table from 'cli-table3';
 import chalk from 'chalk';
@@ -159,7 +159,7 @@ export class ProcessMonitor {
     if (this.connected) return;
 
     await new Promise<void>((resolve, reject) => {
-      PM2.connect((err: Error | null) => {
+      pm2.connect((err: Error | null) => {
         if (err) {
           reject(err);
         } else {
@@ -175,7 +175,7 @@ export class ProcessMonitor {
     if (!this.connected) return;
     
     this.stopMonitoring();
-    PM2.disconnect();
+    pm2.disconnect();
     this.connected = false;
     this.logger.debug('ProcessMonitor disconnected');
   }
@@ -271,7 +271,7 @@ export class ProcessMonitor {
 
   private async restartProcess(name: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
-      PM2.restart(name, (err: Error | null) => {
+      pm2.restart(name, (err: Error | null) => {
         if (err) {
           reject(err);
         } else {
@@ -282,8 +282,10 @@ export class ProcessMonitor {
   }
 
   async listProcesses(): Promise<any[]> {
+    if (!this.connected) return [];
+    
     return new Promise<any[]>((resolve, reject) => {
-      PM2.list((err: Error | null, list: any[]) => {
+      pm2.list((err: Error | null, list: any[]) => {
         if (err) {
           reject(err);
         } else {

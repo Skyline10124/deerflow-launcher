@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs';
-import PM2 from 'pm2';
+import * as pm2 from 'pm2';
 import { Logger, getLogger } from './Logger';
 import { HealthChecker } from './HealthChecker';
 import {
@@ -60,7 +60,7 @@ export class ProcessManager {
 
     try {
       await new Promise<void>((resolve, reject) => {
-        PM2.connect((err: Error | null) => {
+        pm2.connect((err: Error | null) => {
           if (err) {
             reject(err);
           } else {
@@ -95,7 +95,7 @@ export class ProcessManager {
   /** 删除指定的 PM2 进程 */
   private async deleteProcess(name: string): Promise<void> {
     return new Promise<void>((resolve) => {
-      PM2.delete(name, () => resolve());
+      pm2.delete(name, () => resolve());
     });
   }
 
@@ -124,7 +124,7 @@ export class ProcessManager {
 
     return new Promise<void>((resolve) => {
       try {
-        PM2.disconnect();
+        pm2.disconnect();
         this.connected = false;
         this.logger.debug('Disconnected from PM2');
       } catch {
@@ -138,7 +138,7 @@ export class ProcessManager {
   forceDisconnect(): void {
     if (this.connected) {
       try {
-        PM2.disconnect();
+        pm2.disconnect();
       } catch {}
       this.connected = false;
     }
@@ -234,7 +234,7 @@ export class ProcessManager {
       const config = this.buildPM2Config(service);
 
       const proc = await new Promise<any>((resolve, reject) => {
-        PM2.start(config, (err: Error | null, proc: any) => {
+        pm2.start(config, (err: Error | null, proc: any) => {
           if (err) {
             reject(err);
           } else {
@@ -307,7 +307,7 @@ export class ProcessManager {
       const config = this.buildPM2Config(service);
 
       await new Promise<void>((resolve, reject) => {
-        PM2.start(config, (err: Error | null) => {
+        pm2.start(config, (err: Error | null) => {
           if (err) {
             reject(err);
           } else {
@@ -341,14 +341,14 @@ export class ProcessManager {
     try {
       await new Promise<void>((resolve) => {
         const timer = setTimeout(() => {
-          this.logger.warn(`PM2.stop(${name}) timeout, continuing...`);
+          this.logger.warn(`pm2.stop(${name}) timeout, continuing...`);
           resolve();
         }, timeout);
         
-        PM2.stop(name, (err: Error | null) => {
+        pm2.stop(name, (err: Error | null) => {
           clearTimeout(timer);
           if (err) {
-            this.logger.debug(`PM2.stop(${name}) error: ${err.message}`);
+            this.logger.debug(`pm2.stop(${name}) error: ${err.message}`);
           }
           resolve();
         });
@@ -356,14 +356,14 @@ export class ProcessManager {
 
       await new Promise<void>((resolve) => {
         const timer = setTimeout(() => {
-          this.logger.warn(`PM2.delete(${name}) timeout, continuing...`);
+          this.logger.warn(`pm2.delete(${name}) timeout, continuing...`);
           resolve();
         }, timeout);
         
-        PM2.delete(name, (err: Error | null) => {
+        pm2.delete(name, (err: Error | null) => {
           clearTimeout(timer);
           if (err) {
-            this.logger.debug(`PM2.delete(${name}) error: ${err.message}`);
+            this.logger.debug(`pm2.delete(${name}) error: ${err.message}`);
           }
           resolve();
         });
@@ -383,8 +383,8 @@ export class ProcessManager {
       if (existing) {
         this.logger.debug(`Deleting existing process: ${name}`);
         await new Promise<void>((resolve, reject) => {
-          PM2.stop(name, (stopErr: Error | null) => {
-            PM2.delete(name, (delErr: Error | null) => {
+          pm2.stop(name, (stopErr: Error | null) => {
+            pm2.delete(name, (delErr: Error | null) => {
               if (delErr && !delErr.message.includes("doesn't exist")) {
                 reject(delErr);
               } else {
@@ -408,7 +408,7 @@ export class ProcessManager {
         if (MANAGED_SERVICE_NAMES.includes(proc.name)) {
           this.logger.debug(`Killing process: ${proc.name}`);
           await new Promise<void>((resolve) => {
-            PM2.delete(proc.name, () => resolve());
+            pm2.delete(proc.name, () => resolve());
           });
         }
       }
@@ -439,7 +439,7 @@ export class ProcessManager {
     }
 
     return new Promise<any[]>((resolve, reject) => {
-      PM2.list((err: Error | null, list: any[]) => {
+      pm2.list((err: Error | null, list: any[]) => {
         if (err) {
           reject(err);
         } else {
