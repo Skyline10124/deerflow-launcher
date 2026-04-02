@@ -20,6 +20,7 @@ import { ConfigInitializer } from '../modules/ConfigInitializer';
 import { SERVICE_START_ORDER, getServiceDefinitions } from '../config/services';
 import { existsSync } from 'fs';
 import { getDeerFlowPath } from '../utils/env';
+import { getPackageVersion } from '../utils/version';
 
 /**
  * 获取日志目录路径
@@ -132,7 +133,20 @@ class ConfigServiceAdapter implements IConfigService {
     };
   }
 
-  async init(): Promise<void> {}
+  async init(): Promise<void> {
+    const deerflowPath = getDeerFlowPath();
+    const logDir = getLogDir();
+    const configInitializer = new ConfigInitializer(deerflowPath, logDir);
+    if (!configInitializer.validateDeerFlowPath()) {
+      throw new Error(
+        'Invalid DeerFlow path. Ensure the repository is properly cloned and config.example.yaml exists.'
+      );
+    }
+    const result = await configInitializer.initialize();
+    if (!result.success) {
+      throw new Error(`Failed to initialize config files: ${result.failed.join(', ')}`);
+    }
+  }
 }
 
 /**
@@ -361,12 +375,21 @@ export async function createCLI(): Promise<Command> {
   program
     .name('deerflow')
     .description('DeerFlow Desktop Launcher CLI')
-    .version('0.3.0', '-v, --version');
+    .version(getPackageVersion(), '-v, --version');
 
   program.exitOverride();
+
+  function isPm2SocketError(err: { message?: string; code?: string }): boolean {
+    return err?.code === 'ECONNREFUSED' &&
+      Boolean(err?.message?.includes('.sock') || err?.message?.includes('pm2'));
+  }
+
   process.on('unhandledRejection', (reason: unknown) => {
     const err = reason as { message?: string; code?: string };
-    if (err?.message?.includes('sock') || err?.code === 'ECONNREFUSED') {
+    if (isPm2SocketError(err)) {
+      if (process.env.DEBUG) {
+        console.debug('[debug] Suppressed PM2 socket error:', err?.message);
+      }
       return;
     }
     console.error(chalk.red('\nUnexpected error:'), reason);
@@ -375,7 +398,10 @@ export async function createCLI(): Promise<Command> {
 
   process.on('uncaughtException', (error: unknown) => {
     const err = error as { message?: string; code?: string };
-    if (err?.message?.includes('sock') || err?.code === 'ECONNREFUSED') {
+    if (isPm2SocketError(err)) {
+      if (process.env.DEBUG) {
+        console.debug('[debug] Suppressed PM2 socket error:', err?.message);
+      }
       return;
     }
     console.error(chalk.red('\nUnexpected error:'), error);

@@ -1,8 +1,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as net from 'net';
-import { spawnSync } from 'child_process';
 import { Logger, getLogger } from './Logger';
+import { safeSpawnSync } from '../utils/command';
+import { compareVersions } from '../utils/version';
+import { VERSION_REQUIREMENTS } from '../utils/requirements';
 
 export interface DoctorCheckItem {
   category: 'runtime' | 'package' | 'service' | 'network' | 'config';
@@ -83,8 +85,8 @@ export class EnvDoctor {
     const checks: DoctorCheckItem[] = [];
 
     const runtimes = [
-      { name: 'Python', command: 'python --version', minVersion: '3.10.0' },
-      { name: 'Node.js', command: 'node --version', minVersion: '18.0.0' }
+      { name: 'Python', command: process.platform === 'win32' ? 'python --version' : 'python3 --version', minVersion: VERSION_REQUIREMENTS.python.min },
+      { name: 'Node.js', command: 'node --version', minVersion: VERSION_REQUIREMENTS.node.min }
     ];
 
     for (const rt of runtimes) {
@@ -126,10 +128,7 @@ export class EnvDoctor {
   private async checkService(): Promise<DoctorCheckItem[]> {
     const checks: DoctorCheckItem[] = [];
 
-    const result = this.checkCommand(
-      process.platform === 'win32' ? 'nginx -v 2>&1' : 'nginx -v 2>&1',
-      '1.20.0'
-    );
+    const result = this.checkCommand('nginx -v', VERSION_REQUIREMENTS.nginx.min);
 
     checks.push({
       category: 'service',
@@ -180,12 +179,7 @@ export class EnvDoctor {
 
   private checkCommand(command: string, minVersion?: string): { status: DoctorCheckItem['status']; message: string; version?: string } {
     try {
-      const result = spawnSync(command, [], {
-        shell: true,
-        encoding: 'utf-8',
-        timeout: 5000,
-        windowsHide: true
-      });
+      const result = safeSpawnSync(command, { timeout: 5000 });
 
       if (result.error) throw result.error;
 
@@ -197,7 +191,7 @@ export class EnvDoctor {
         return { status: 'fail', message: '未找到' };
       }
 
-      if (minVersion && this.compareVersions(version, minVersion) < 0) {
+      if (minVersion && compareVersions(version, minVersion) < 0) {
         return { 
           status: 'fail', 
           message: `版本过低 (当前: ${version}, 需要: ${minVersion})`,
@@ -209,19 +203,6 @@ export class EnvDoctor {
     } catch {
       return { status: 'fail', message: '未安装' };
     }
-  }
-
-  private compareVersions(v1: string, v2: string): number {
-    const parts1 = v1.split('.').map(Number);
-    const parts2 = v2.split('.').map(Number);
-    
-    for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
-      const p1 = parts1[i] || 0;
-      const p2 = parts2[i] || 0;
-      if (p1 > p2) return 1;
-      if (p1 < p2) return -1;
-    }
-    return 0;
   }
 
   private async isPortAvailable(port: number): Promise<boolean> {

@@ -19,9 +19,9 @@
     "test:unit": "jest --testPathPattern=tests/unit",
     "test:integration": "jest --testPathPattern=tests/integration",
     "build:release": "node scripts/build-release.js",
-    "build:win": "npm run build && npx pkg . --targets node18-win-x64 --output dist/bin/deerflow-launcher.exe",
-    "build:linux": "npm run build && npx pkg . --targets node18-linux-x64 --output dist/bin/deerflow-launcher",
-    "build:mac": "npm run build && npx pkg . --targets node18-macos-x64 --output dist/bin/deerflow-launcher"
+    "build:win": "npm run build && npx pkg . --targets node22-win-x64 --output dist/bin/deerflow-launcher.exe",
+    "build:linux": "npm run build && npx pkg . --targets node22-linux-x64 --output dist/bin/deerflow-launcher",
+    "build:mac": "npm run build && npx pkg . --targets node22-macos-x64 --output dist/bin/deerflow-launcher"
   },
   "keywords": [
     "deerflow",
@@ -58,13 +58,13 @@
     "typescript": "^5.9.3"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.0.0"
   },
   "pkg": {
     "targets": [
-      "node18-win-x64",
-      "node18-linux-x64",
-      "node18-macos-x64"
+      "node22-win-x64",
+      "node22-linux-x64",
+      "node22-macos-x64"
     ],
     "outputPath": "dist/bin",
     "assets": [

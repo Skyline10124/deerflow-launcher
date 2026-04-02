@@ -436,11 +436,14 @@ export class ProcessMonitor {
     }
 
     this.logger.warn(`${serviceName} process error, attempting restart (${attempts + 1}/${this.config.maxRetries})...`);
-    
+
+    // 在尝试重启前递增计数，防止失败时不计数导致无限重启
+    // Increment counter BEFORE restart to prevent infinite loops on failure
+    this.restartAttempts.set(serviceName, attempts + 1);
+    this.lastRestartTime.set(serviceName, now);
+
     try {
       await this.restartProcess(serviceName);
-      this.restartAttempts.set(serviceName, attempts + 1);
-      this.lastRestartTime.set(serviceName, now);
       this.logger.info(`${serviceName} restarted successfully`);
     } catch (error) {
       this.logger.error(`Failed to restart ${serviceName}: ${error}`);

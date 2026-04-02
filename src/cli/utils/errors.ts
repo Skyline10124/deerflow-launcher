@@ -112,11 +112,11 @@ export const ErrorSuggestions: Record<ErrorCode, string> = {
   [ErrorCode.CONFIG_PARSE_ERROR]: 'Check the configuration file syntax',
   [ErrorCode.CONFIG_VALIDATION_FAILED]: 'Fix the validation errors and try again',
   
-  [ErrorCode.ENV_NODE_VERSION]: 'Install Node.js 18 or higher',
+  [ErrorCode.ENV_NODE_VERSION]: 'Install Node.js 22 or higher',
   [ErrorCode.ENV_PM2_NOT_FOUND]: 'Run "npm install -g pm2"',
   [ErrorCode.ENV_DEERFLOW_NOT_FOUND]: 'Set DEERFLOW_PATH environment variable',
   [ErrorCode.ENV_PORT_CONFLICT]: 'Stop the conflicting service or change the port',
-  [ErrorCode.ENV_PYTHON_MISSING]: 'Install Python 3.10 or higher',
+  [ErrorCode.ENV_PYTHON_MISSING]: 'Install Python 3.12 or higher',
   [ErrorCode.ENV_UV_MISSING]: 'Run "pip install uv"',
   [ErrorCode.ENV_PNPM_MISSING]: 'Run "npm install -g pnpm"',
   [ErrorCode.ENV_NGINX_MISSING]: 'Install nginx'

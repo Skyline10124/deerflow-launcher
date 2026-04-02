@@ -242,7 +242,9 @@ export class ProcessManager {
     if (this.connected) {
       try {
         pm2.disconnect();
-      } catch {}
+      } catch (error) {
+        this.logger.debug(`Force disconnect error (expected): ${error}`);
+      }
       this.connected = false;
       this.pm2Runtime = null;
     }
@@ -611,8 +613,9 @@ export class ProcessManager {
           });
         });
       }
-    } catch {
-      // 忽略错误 - 进程可能不存在 / Ignore errors - process may not exist
+    } catch (error) {
+      // 进程可能不存在 / Process may not exist
+      this.logger.debug(`deleteExistingProcess: process may not exist: ${error}`);
     }
   }
 
@@ -640,8 +643,9 @@ export class ProcessManager {
       });
       
       await Promise.all(killPromises);
-    } catch {
-      // 忽略错误 / Ignore errors
+    } catch (error) {
+      // 清理时的错误不应阻止流程 / Cleanup errors should not block the flow
+      this.logger.debug(`killAllManagedProcesses cleanup error: ${error}`);
     }
   }
 

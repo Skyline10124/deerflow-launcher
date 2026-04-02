@@ -27,10 +27,10 @@ export function registerDoctorCommand(
           check: async () => {
             const version = process.version;
             const major = parseInt(version.slice(1).split('.')[0]);
-            if (major >= 18) {
+            if (major >= 22) {
               return { ok: true, message: `v${version}` };
             }
-            return { ok: false, message: `v${version} (requires >= 18)` };
+            return { ok: false, message: `v${version} (requires >= 22)` };
           }
         },
         {

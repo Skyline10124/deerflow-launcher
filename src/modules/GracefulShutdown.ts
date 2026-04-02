@@ -131,19 +131,16 @@ export class GracefulShutdown {
    * @param signal - 信号名称 / Signal name
    */
   private async handleShutdown(signal: string): Promise<void> {
-    if (this.isShuttingDown) {
+    // 使用 shutdownPromise 作为主守卫，避免重复执行
+    // Use shutdownPromise as primary guard to prevent duplicate execution
+    if (this.shutdownPromise) {
       this.logger.debug('Already shutting down, ignoring signal');
+      await this.shutdownPromise;
       return;
     }
 
     this.isShuttingDown = true;
     this.logger.info(`收到关闭信号 ${signal}，开始优雅关闭...`);
-
-    // 防止重复执行 / Prevent duplicate execution
-    if (this.shutdownPromise) {
-      await this.shutdownPromise;
-      return;
-    }
 
     this.shutdownPromise = this.executeShutdown();
 

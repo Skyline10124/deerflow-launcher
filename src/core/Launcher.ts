@@ -23,6 +23,7 @@ import {
 } from './LaunchContext';
 import { getServiceDefinitions, SERVICE_START_ORDER } from '../config/services';
 import { LauncherException, createEnvError, createStartError, createConfigError } from '../utils/errors';
+import { getPackageVersion } from '../utils/version';
 
 /** Launcher 配置选项 */
 export interface LauncherOptions {
@@ -69,7 +70,7 @@ export class Launcher {
    * 按顺序执行环境检查、配置初始化和服务启动
    */
   async start(): Promise<LaunchResult> {
-    this.logger.info('DeerFlow Launcher Demo v0.2.0');
+    this.logger.info(`DeerFlow Launcher v${getPackageVersion()}`);
     this.logger.info(`DeerFlow Path: ${this.context.deerflowPath}`);
     this.logger.info('');
 

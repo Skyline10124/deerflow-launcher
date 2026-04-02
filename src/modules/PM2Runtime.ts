@@ -468,7 +468,14 @@ export class PM2Runtime {
    * @returns 是否成功删除 / Whether deletion was successful
    */
   static removeInstance(instanceId: string): boolean {
-    const baseDir = path.join(os.homedir(), '.deerflow', 'pm2-instances', instanceId);
+    if (!instanceId || /[/\\]/.test(instanceId) || instanceId.includes('..')) {
+      throw new Error(`Invalid instance ID: "${instanceId}"`);
+    }
+    const expectedParent = path.resolve(os.homedir(), '.deerflow', 'pm2-instances');
+    const baseDir = path.resolve(expectedParent, instanceId);
+    if (!baseDir.startsWith(expectedParent + path.sep)) {
+      throw new Error('Invalid instance ID: resolved path escapes expected directory');
+    }
     if (fs.existsSync(baseDir)) {
       fs.rmSync(baseDir, { recursive: true, force: true });
       return true;

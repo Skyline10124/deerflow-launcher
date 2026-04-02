@@ -97,9 +97,24 @@ export class HealthChecker {
   ): Promise<Map<number, HealthCheckResult>> {
     const results = new Map<number, HealthCheckResult>();
 
-    for (const port of ports) {
+    const checks = ports.map(async (port) => {
       const result = await this.check({ ...options, port });
-      results.set(port, result);
+      return { port, result };
+    });
+
+    const settled = await Promise.allSettled(checks);
+    for (let i = 0; i < settled.length; i++) {
+      const outcome = settled[i];
+      if (outcome.status === 'fulfilled') {
+        results.set(outcome.value.port, outcome.value.result);
+      } else {
+        results.set(ports[i], {
+          status: 'error' as const,
+          port: ports[i],
+          duration: 0,
+          error: outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason)
+        });
+      }
     }
 
     return results;

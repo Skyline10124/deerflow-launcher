@@ -1,6 +1,7 @@
-import { spawnSync } from 'child_process';
 import { Logger, getLogger } from './Logger';
 import { EnvCheckResult, DependencyInfo, ErrorCodes } from '../types';
+import { safeSpawnSync } from '../utils/command';
+import { compareVersions } from '../utils/version';
 
 /** 依赖项配置接口 */
 interface DependencyConfig {
@@ -76,32 +77,13 @@ export class EnvChecker {
     return match ? match[0] : '';
   }
 
-  /** 比较两个版本号，返回 1(v1>v2), -1(v1<v2), 0(相等) */
-  private compareVersions(v1: string, v2: string): number {
-    const parts1 = v1.split('.').map(Number);
-    const parts2 = v2.split('.').map(Number);
-    
-    for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
-      const p1 = parts1[i] || 0;
-      const p2 = parts2[i] || 0;
-      if (p1 > p2) return 1;
-      if (p1 < p2) return -1;
-    }
-    return 0;
-  }
-
-  /** 执行 shell 命令并返回输出 */
+  /** 执行命令并返回输出（不使用 shell） */
   private runCommand(command: string): string {
-    const result = spawnSync(command, [], {
-      shell: true,
-      encoding: 'utf-8',
-      timeout: 5000,
-      windowsHide: true
-    });
+    const result = safeSpawnSync(command, { timeout: 5000 });
     if (result.error) {
       throw result.error;
     }
-    return (result.stdout || '').trim();
+    return (result.stdout || result.stderr || '').trim();
   }
 
   /** 检查单个依赖项 */
@@ -116,7 +98,7 @@ export class EnvChecker {
         return { error: `Could not parse ${config.name} version from: ${output}` };
       }
 
-      if (config.minVersion && this.compareVersions(version, config.minVersion) < 0) {
+      if (config.minVersion && compareVersions(version, config.minVersion) < 0) {
         return {
           error: `${config.name} version ${version} is below minimum required ${config.minVersion}`
         };
