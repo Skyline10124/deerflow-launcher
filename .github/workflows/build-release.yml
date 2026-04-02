@@ -58,6 +58,7 @@ jobs:
 
       - name: Get version and build time
         id: version
+        shell: bash
         run: |
           VERSION=$(node -p "require('./package.json').version")
           BUILD_TIME=$(date +%Y%m%d_%H%M)
