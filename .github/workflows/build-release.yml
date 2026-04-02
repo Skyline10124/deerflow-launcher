@@ -4,13 +4,13 @@ on:
   push:
     tags:
       - 'v*'
+      - 'alpha'
+      - 'beta'
+      - 'stable'
   workflow_dispatch:
-    inputs:
-      create_release:
-        description: 'Create GitHub Release'
-        required: false
-        default: true
-        type: boolean
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
@@ -128,7 +128,7 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-    if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true') }}
+    if: ${{ startsWith(github.ref, 'refs/tags/') }}
 
     steps:
       - name: Checkout code
@@ -201,6 +201,6 @@ jobs:
           files: |
             artifacts/**/*
           draft: false
-          prerelease: ${{ contains(steps.version.outputs.version, 'alpha') || contains(steps.version.outputs.version, 'beta') }}
+          prerelease: ${{ github.ref == 'refs/tags/alpha' || github.ref == 'refs/tags/beta' || contains(steps.version.outputs.version, 'alpha') || contains(steps.version.outputs.version, 'beta') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
