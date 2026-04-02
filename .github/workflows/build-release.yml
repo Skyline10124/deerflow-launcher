@@ -44,25 +44,20 @@ jobs:
         with:
           node-version: '22'
           cache: 'npm'
-          cache-dependency-path: launcher/package-lock.json
 
       - name: Install dependencies
-        working-directory: launcher
         run: npm ci
 
       - name: Build TypeScript
-        working-directory: launcher
         run: npm run build
 
       - name: Build executable
-        working-directory: launcher
         run: npx @yao-pkg/pkg . --targets node22-${{ matrix.platform }}-x64 --output "dist/pkg/deerflow-launcher${{ matrix.ext }}"
         env:
           PKG_CACHE_PATH: ${{ github.workspace }}/pkg-cache
 
       - name: Get version and build time
         id: version
-        working-directory: launcher
         run: |
           VERSION=$(node -p "require('./package.json').version")
           BUILD_TIME=$(date +%Y%m%d_%H%M)
@@ -70,7 +65,6 @@ jobs:
           echo "build_time=$BUILD_TIME" >> $GITHUB_OUTPUT
 
       - name: Prepare release directory
-        working-directory: launcher
         shell: bash
         run: |
           VERSION="${{ steps.version.outputs.version }}"
@@ -110,13 +104,13 @@ jobs:
 
       - name: Create archive (Windows)
         if: ${{ matrix.platform == 'win' }}
-        working-directory: launcher/dist/release
+        working-directory: dist/release
         shell: pwsh
         run: Compress-Archive -Path "deerflow-launcher_${{ steps.version.outputs.version }}_${{ matrix.platform }}-x64" -DestinationPath "deerflow-launcher_${{ steps.version.outputs.version }}_${{ matrix.platform }}-x64_${{ steps.version.outputs.build_time }}.zip"
 
       - name: Create archive (Unix)
         if: ${{ matrix.platform != 'win' }}
-        working-directory: launcher/dist/release
+        working-directory: dist/release
         run: tar -czvf "deerflow-launcher_${{ steps.version.outputs.version }}_${{ matrix.platform }}-x64_${{ steps.version.outputs.build_time }}.tar.gz" "deerflow-launcher_${{ steps.version.outputs.version }}_${{ matrix.platform }}-x64"
 
       - name: Upload artifact
@@ -124,7 +118,7 @@ jobs:
         with:
           name: deerflow-launcher-${{ matrix.platform }}-x64
           path: |
-            launcher/dist/release/deerflow-launcher_${{ steps.version.outputs.version }}_${{ matrix.platform }}-x64_${{ steps.version.outputs.build_time }}.*
+            dist/release/deerflow-launcher_${{ steps.version.outputs.version }}_${{ matrix.platform }}-x64_${{ steps.version.outputs.build_time }}.*
           retention-days: 30
 
   release:
