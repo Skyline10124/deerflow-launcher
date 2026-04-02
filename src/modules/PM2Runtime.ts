@@ -144,11 +144,9 @@ export function getScriptPath(scriptPath: string): string {
   const scriptName = path.basename(scriptPath);
 
   if (isPkgEnvironment()) {
-    // pkg 环境下脚本在 assets 目录 / Scripts in assets directory in pkg
     return path.join(getPkgAssetsPath(), scriptName);
   }
 
-  // 开发环境下脚本在 scripts 目录 / Scripts in scripts directory in dev
   return path.join(getPkgRoot(), 'scripts', scriptName);
 }
 

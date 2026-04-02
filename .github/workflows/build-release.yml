@@ -1,0 +1,180 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      create_release:
+        description: 'Create GitHub Release'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            ext: ''
+            archive: 'tar.gz'
+          - os: windows-latest
+            platform: win
+            ext: '.exe'
+            archive: 'zip'
+          - os: macos-latest
+            platform: macos
+            ext: ''
+            archive: 'tar.gz'
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      build_time: ${{ steps.version.outputs.build_time }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: launcher/package-lock.json
+
+      - name: Install dependencies
+        working-directory: launcher
+        run: npm ci
+
+      - name: Build TypeScript
+        working-directory: launcher
+        run: npm run build
+
+      - name: Build executable
+        working-directory: launcher
+        run: npx @yao-pkg/pkg . --targets node22-${{ matrix.platform }}-x64 --output "dist/pkg/deerflow-launcher${{ matrix.ext }}"
+        env:
+          PKG_CACHE_PATH: ${{ github.workspace }}/pkg-cache
+
+      - name: Get version and build time
+        id: version
+        working-directory: launcher
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          BUILD_TIME=$(date +%Y%m%d_%H%M)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "build_time=$BUILD_TIME" >> $GITHUB_OUTPUT
+
+      - name: Prepare release directory
+        working-directory: launcher
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          BUILD_TIME="${{ steps.version.outputs.build_time }}"
+          RELEASE_DIR="dist/release/deerflow-launcher_${VERSION}_${{ matrix.platform }}-x64"
+          
+          mkdir -p "$RELEASE_DIR/assets"
+          cp "dist/pkg/deerflow-launcher${{ matrix.ext }}" "$RELEASE_DIR/"
+          cp scripts/wrapper.js "$RELEASE_DIR/assets/"
+          
+          cat > "$RELEASE_DIR/README.txt" << EOF
+          DeerFlow Launcher v${VERSION}
+          ========================
+          
+          This is the DeerFlow Launcher for ${{ matrix.platform }}.
+          
+          Usage:
+            ./deerflow-launcher${{ matrix.ext }} --help
+          
+          Commands:
+            deerflow-launcher start [services...]    Start services
+            deerflow-launcher stop [services...]     Stop services
+            deerflow-launcher status [service]       Show service status
+            deerflow-launcher logs [service]         View service logs
+            deerflow-launcher doctor                 Run environment diagnostics
+            deerflow-launcher config <command>       Manage configuration
+          
+          Requirements:
+            - Python 3.12+
+            - Node.js 22+
+            - uv (Python package manager)
+            - pnpm (Node.js package manager)
+            - nginx
+          
+          License: MIT
+          EOF
+
+      - name: Create archive (Windows)
+        if: ${{ matrix.platform == 'win' }}
+        working-directory: launcher/dist/release
+        shell: pwsh
+        run: Compress-Archive -Path "deerflow-launcher_${{ steps.version.outputs.version }}_${{ matrix.platform }}-x64" -DestinationPath "deerflow-launcher_${{ steps.version.outputs.version }}_${{ matrix.platform }}-x64_${{ steps.version.outputs.build_time }}.zip"
+
+      - name: Create archive (Unix)
+        if: ${{ matrix.platform != 'win' }}
+        working-directory: launcher/dist/release
+        run: tar -czvf "deerflow-launcher_${{ steps.version.outputs.version }}_${{ matrix.platform }}-x64_${{ steps.version.outputs.build_time }}.tar.gz" "deerflow-launcher_${{ steps.version.outputs.version }}_${{ matrix.platform }}-x64"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deerflow-launcher-${{ matrix.platform }}-x64
+          path: |
+            launcher/dist/release/deerflow-launcher_${{ steps.version.outputs.version }}_${{ matrix.platform }}-x64_${{ steps.version.outputs.build_time }}.*
+          retention-days: 30
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true') }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display structure of downloaded files
+        run: ls -la artifacts/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: DeerFlow Launcher v${{ needs.build.outputs.version }}
+          body: |
+            ## DeerFlow Launcher v${{ needs.build.outputs.version }}
+            
+            ### Downloads
+            - **Windows**: `deerflow-launcher_*_win-x64_*.zip`
+            - **Linux**: `deerflow-launcher_*_linux-x64_*.tar.gz`
+            - **macOS**: `deerflow-launcher_*_macos-x64_*.tar.gz`
+            
+            ### Requirements
+            - Python 3.12+
+            - Node.js 22+
+            - uv (Python package manager)
+            - pnpm (Node.js package manager)
+            - nginx
+            
+            ### Usage
+            ```bash
+            # Extract the archive
+            tar -xzf deerflow-launcher_*.tar.gz  # Linux/macOS
+            # or unzip deerflow-launcher_*.zip   # Windows
+            
+            # Run the launcher
+            ./deerflow-launcher --help
+            ```
+          files: |
+            artifacts/**/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

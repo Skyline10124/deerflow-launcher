@@ -1,6 +1,6 @@
 {
   "name": "deerflow-launcher",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "DeerFlow Desktop Launcher - Service management and startup",
   "main": "dist/src/main.js",
   "bin": {
@@ -18,10 +18,10 @@
     "test": "jest",
     "test:unit": "jest --testPathPattern=tests/unit",
     "test:integration": "jest --testPathPattern=tests/integration",
-    "build:release": "node scripts/build-release.js",
-    "build:win": "npm run build && npx pkg . --targets node22-win-x64 --output dist/bin/deerflow-launcher.exe",
-    "build:linux": "npm run build && npx pkg . --targets node22-linux-x64 --output dist/bin/deerflow-launcher",
-    "build:mac": "npm run build && npx pkg . --targets node22-macos-x64 --output dist/bin/deerflow-launcher"
+    "build:pkg": "node scripts/build-pkg.js",
+    "build:win": "npm run build:pkg",
+    "build:linux": "npm run build:pkg",
+    "build:mac": "npm run build:pkg"
   },
   "keywords": [
     "deerflow",
@@ -50,7 +50,6 @@
     "eslint": "^9.22.0",
     "globals": "^17.4.0",
     "jest": "^29.7.0",
-    "pkg": "^5.8.1",
     "prettier": "^3.5.3",
     "ts-jest": "^29.2.6",
     "ts-node": "^10.9.2",
