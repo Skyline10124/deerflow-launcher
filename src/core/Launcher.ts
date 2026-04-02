@@ -144,6 +144,7 @@ export class Launcher {
     this.logger.info('=== Phase 3: Service Startup ===');
     
     await this.processManager.connect();
+    this.processMonitor.setProcessManager(this.processManager);
     
     const serviceDefinitions = getServiceDefinitions(this.context.deerflowPath);
     

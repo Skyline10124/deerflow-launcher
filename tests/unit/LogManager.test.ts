@@ -2,6 +2,7 @@ import { LogManager } from '../../src/modules/LogManager';
 import { ServiceName } from '../../src/types';
 import * as fs from 'fs';
 import * as path from 'path';
+import { test, expect, beforeEach, afterEach, describe } from 'bun:test';
 
 describe('LogManager', () => {
   const testLogDir = path.join(__dirname, 'test-logs-' + Date.now());
@@ -24,11 +25,11 @@ describe('LogManager', () => {
     }
   });
 
-  it('should create log manager instance', () => {
+  test('should create log manager instance', () => {
     expect(logManager).toBeDefined();
   });
 
-  it('should return correct log file path', () => {
+  test('should return correct log file path', () => {
     const launcherPath = logManager.getLogFilePath('launcher');
     expect(launcherPath).toBe(path.join(testLogDir, 'launcher.log'));
     
@@ -36,8 +37,7 @@ describe('LogManager', () => {
     expect(langgraphPath).toBe(path.join(testLogDir, 'langgraph.log'));
   });
 
-  it('should list log files', () => {
-    // Create some log files
+  test('should list log files', () => {
     fs.writeFileSync(path.join(testLogDir, 'launcher.log'), 'test');
     fs.writeFileSync(path.join(testLogDir, 'langgraph.log'), 'test');
     
@@ -48,12 +48,12 @@ describe('LogManager', () => {
     expect(files.map(f => f.file)).toContain('langgraph.log');
   });
 
-  it('should return empty array when no log files exist', () => {
+  test('should return empty array when no log files exist', () => {
     const files = logManager.listLogFiles();
     expect(files).toEqual([]);
   });
 
-  it('should read logs from file', () => {
+  test('should read logs from file', () => {
     const logContent = `[2024-01-01T00:00:00.000Z] [INFO] [Test] Message 1
 [2024-01-01T00:00:01.000Z] [ERROR] [Test] Message 2
 [2024-01-01T00:00:02.000Z] [WARN] [Test] Message 3`;
@@ -68,7 +68,7 @@ describe('LogManager', () => {
     expect(entries[2].level).toBe('WARN');
   });
 
-  it('should filter logs by level', () => {
+  test('should filter logs by level', () => {
     const logContent = `[2024-01-01T00:00:00.000Z] [INFO] [Test] Message 1
 [2024-01-01T00:00:01.000Z] [ERROR] [Test] Message 2
 [2024-01-01T00:00:02.000Z] [WARN] [Test] Message 3`;
@@ -81,7 +81,7 @@ describe('LogManager', () => {
     expect(entries[0].level).toBe('ERROR');
   });
 
-  it('should filter logs by search term', () => {
+  test('should filter logs by search term', () => {
     const logContent = `[2024-01-01T00:00:00.000Z] [INFO] [Test] Starting service
 [2024-01-01T00:00:01.000Z] [INFO] [Test] Service ready
 [2024-01-01T00:00:02.000Z] [ERROR] [Test] Connection failed`;
@@ -94,7 +94,7 @@ describe('LogManager', () => {
     expect(entries[0].message).toContain('failed');
   });
 
-  it('should limit lines returned', () => {
+  test('should limit lines returned', () => {
     const lines = Array(100).fill(0).map((_, i) => 
       `[2024-01-01T00:00:00.000Z] [INFO] [Test] Message ${i}`
     ).join('\n');
@@ -106,7 +106,7 @@ describe('LogManager', () => {
     expect(entries.length).toBe(10);
   });
 
-  it('should return tail logs', () => {
+  test('should return tail logs', () => {
     const logContent = Array(50).fill(0).map((_, i) => 
       `[2024-01-01T00:00:00.000Z] [INFO] [Test] Message ${i}`
     ).join('\n');
@@ -119,7 +119,7 @@ describe('LogManager', () => {
     expect(entries[4].message).toContain('Message 49');
   });
 
-  it('should clear logs', () => {
+  test('should clear logs', () => {
     fs.writeFileSync(path.join(testLogDir, 'launcher.log'), 'test content');
     
     logManager.clearLogs('launcher');
@@ -128,15 +128,15 @@ describe('LogManager', () => {
     expect(content).toBe('');
   });
 
-  it('should get log size', () => {
+  test('should get log size', () => {
     fs.writeFileSync(path.join(testLogDir, 'launcher.log'), 'test content');
     
     const size = logManager.getLogSize('launcher');
     
-    expect(size).toBe(12); // 'test content'.length
+    expect(size).toBe(12);
   });
 
-  it('should format entries as text', () => {
+  test('should format entries as text', () => {
     const entries = [
       { timestamp: '2024-01-01T00:00:00.000Z', level: 'INFO', module: 'Test', message: 'Msg 1', raw: '[2024-01-01T00:00:00.000Z] [INFO] [Test] Msg 1' },
       { timestamp: '2024-01-01T00:00:01.000Z', level: 'ERROR', module: 'Test', message: 'Msg 2', raw: '[2024-01-01T00:00:01.000Z] [ERROR] [Test] Msg 2' }
@@ -148,7 +148,7 @@ describe('LogManager', () => {
     expect(text).toContain('Msg 2');
   });
 
-  it('should format entries as JSON', () => {
+  test('should format entries as JSON', () => {
     const entries = [
       { timestamp: '2024-01-01T00:00:00.000Z', level: 'INFO', module: 'Test', message: 'Msg 1', raw: 'raw' }
     ];

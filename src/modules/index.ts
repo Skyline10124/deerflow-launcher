@@ -2,7 +2,7 @@ export { Logger, LogLevel, getLogger, getDefaultLogger, setDefaultLogger, parseL
 export { EnvChecker } from './EnvChecker';
 export { ConfigInitializer } from './ConfigInitializer';
 export { HealthChecker } from './HealthChecker';
-export { ProcessManager, PM2ProcessConfig } from './ProcessManager';
+export { ProcessManager, ProcessConfig } from './ProcessManager';
 export { ProcessMonitor, ProcessStatus, MonitorConfig } from './ProcessMonitor';
 export { GracefulShutdown, ShutdownResult, ShutdownConfig } from './GracefulShutdown';
 export { EnvDoctor, DoctorReport, DoctorCheckItem, DoctorOptions } from './EnvDoctor';

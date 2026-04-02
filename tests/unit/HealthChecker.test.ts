@@ -1,21 +1,27 @@
 import * as net from 'net';
 import { HealthChecker } from '../../src/modules/HealthChecker';
+import { test, expect, beforeEach, afterEach, describe } from 'bun:test';
 
 describe('HealthChecker', () => {
   let healthChecker: HealthChecker;
-  let testServer: net.Server;
+  let testServer: net.Server | null = null;
   const testPort = 19999;
 
   beforeEach(() => {
     healthChecker = new HealthChecker();
   });
 
-  afterEach((done) => {
-    if (testServer) {
-      testServer.close(() => done());
-    } else {
-      done();
-    }
+  afterEach(() => {
+    return new Promise<void>((resolve) => {
+      if (testServer) {
+        testServer.close(() => {
+          testServer = null;
+          resolve();
+        });
+      } else {
+        resolve();
+      }
+    });
   });
 
   const createTestServer = (port: number): Promise<net.Server> => {
@@ -29,7 +35,7 @@ describe('HealthChecker', () => {
     });
   };
 
-  it('should detect healthy port', async () => {
+  test('should detect healthy port', async () => {
     await createTestServer(testPort);
 
     const result = await healthChecker.check({
@@ -44,7 +50,7 @@ describe('HealthChecker', () => {
     expect(result.duration).toBeGreaterThan(0);
   });
 
-  it('should return timeout for unavailable port', async () => {
+  test('should return timeout for unavailable port', async () => {
     const result = await healthChecker.check({
       host: 'localhost',
       port: 19998,
@@ -56,7 +62,7 @@ describe('HealthChecker', () => {
     expect(result.error).toBeDefined();
   });
 
-  it('should check multiple ports', async () => {
+  test('should check multiple ports', async () => {
     await createTestServer(testPort);
 
     const results = await healthChecker.checkMultiple(

@@ -10,8 +10,7 @@ module.exports = [
       'node_modules/**',
       'coverage/**',
       '*.js',
-      '!eslint.config.js',
-      'scripts/**/*.js'
+      '!eslint.config.js'
     ]
   },
   {
@@ -26,7 +25,7 @@ module.exports = [
       globals: {
         ...globals.node,
         ...globals.es2021,
-        ...globals.jest,
+        ...globals.bun,
         NodeJS: 'readonly'
       }
     },

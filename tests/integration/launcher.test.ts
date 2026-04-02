@@ -2,10 +2,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ConfigInitializer } from '../../src/modules/ConfigInitializer';
 import { EnvChecker } from '../../src/modules/EnvChecker';
+import { test, expect, beforeEach, afterEach, describe } from 'bun:test';
 
 describe('Integration Tests', () => {
   describe('EnvChecker Integration', () => {
-    it('should check real environment', async () => {
+    test('should check real environment', async () => {
       const checker = new EnvChecker();
       const result = await checker.check();
 
@@ -79,7 +80,7 @@ describe('Integration Tests', () => {
       }
     });
 
-    it('should initialize config files from templates', async () => {
+    test('should initialize config files from templates', async () => {
       const initializer = new ConfigInitializer(templateDir);
       const result = await initializer.initialize();
 
@@ -90,7 +91,7 @@ describe('Integration Tests', () => {
       expect(result.created).toContain('extensions_config.json');
     });
 
-    it('should skip existing config files', async () => {
+    test('should skip existing config files', async () => {
       fs.writeFileSync(
         path.join(templateDir, 'config.yaml'),
         'existing config'

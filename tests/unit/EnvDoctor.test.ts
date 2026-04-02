@@ -1,6 +1,7 @@
 import { EnvDoctor } from '../../src/modules/EnvDoctor';
 import * as fs from 'fs';
 import * as path from 'path';
+import { test, expect, beforeEach, afterEach, describe } from 'bun:test';
 
 describe('EnvDoctor', () => {
   const testDir = path.join(__dirname, 'test-doctor-' + Date.now());
@@ -23,11 +24,11 @@ describe('EnvDoctor', () => {
     }
   });
 
-  it('should create doctor instance', () => {
+  test('should create doctor instance', () => {
     expect(doctor).toBeDefined();
   });
 
-  it('should run diagnostics and return report', async () => {
+  test('should run diagnostics and return report', async () => {
     const report = await doctor.diagnose();
     
     expect(report).toBeDefined();
@@ -37,7 +38,7 @@ describe('EnvDoctor', () => {
     expect(report.summary.total).toBeGreaterThan(0);
   });
 
-  it('should check runtime dependencies', async () => {
+  test('should check runtime dependencies', async () => {
     const report = await doctor.diagnose();
     
     const runtimeChecks = report.checks.filter(c => c.category === 'runtime');
@@ -48,31 +49,29 @@ describe('EnvDoctor', () => {
     expect(nodeCheck!.status).toBe('pass');
   });
 
-  it('should check config files', async () => {
+  test('should check config files', async () => {
     const report = await doctor.diagnose();
     
     const configChecks = report.checks.filter(c => c.category === 'config');
     expect(configChecks.length).toBeGreaterThan(0);
     
-    // Config files don't exist in test dir, so they should fail
     const failedConfigs = configChecks.filter(c => c.status === 'fail');
     expect(failedConfigs.length).toBeGreaterThan(0);
   });
 
-  it('should check network ports', async () => {
+  test('should check network ports', async () => {
     const report = await doctor.diagnose();
     
     const networkChecks = report.checks.filter(c => c.category === 'network');
     expect(networkChecks.length).toBeGreaterThan(0);
     
-    // Ports should be available or in use (warn)
     const validStatuses = ['pass', 'warn'];
     networkChecks.forEach(c => {
       expect(validStatuses).toContain(c.status);
     });
   });
 
-  it('should format report correctly', async () => {
+  test('should format report correctly', async () => {
     const report = await doctor.diagnose();
     const formatted = doctor.formatReport(report);
     
@@ -83,7 +82,7 @@ describe('EnvDoctor', () => {
     expect(formatted).toContain('摘要');
   });
 
-  it('should export report as JSON', async () => {
+  test('should export report as JSON', async () => {
     const report = await doctor.diagnose();
     const json = doctor.toJSON(report);
     
@@ -92,8 +91,7 @@ describe('EnvDoctor', () => {
     expect(parsed.timestamp).toBe(report.timestamp);
   });
 
-  it('should detect existing config files', async () => {
-    // Create a config file
+  test('should detect existing config files', async () => {
     fs.writeFileSync(path.join(testDir, 'config.yaml'), 'test: value');
     
     const report = await doctor.diagnose();

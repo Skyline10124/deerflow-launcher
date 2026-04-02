@@ -1,6 +1,7 @@
 import { Logger, LogLevel } from '../../src/modules/Logger';
 import * as fs from 'fs';
 import * as path from 'path';
+import { test, expect, beforeEach, afterEach, describe } from 'bun:test';
 
 describe('Logger', () => {
   const testLogDir = path.join(__dirname, 'test-logs-' + Date.now());
@@ -29,13 +30,13 @@ describe('Logger', () => {
     }
   });
 
-  it('should create logger with default options', () => {
+  test('should create logger with default options', () => {
     const logger = new Logger('TestModule');
     expect(logger).toBeDefined();
     logger.close();
   });
 
-  it('should log info messages', () => {
+  test('should log info messages', () => {
     const logger = new Logger('TestModule', {
       logDir: testLogDir,
       enableConsole: false,
@@ -52,7 +53,7 @@ describe('Logger', () => {
     expect(logContent).toContain('Test info message');
   });
 
-  it('should respect log level', () => {
+  test('should respect log level', () => {
     const logger = new Logger('TestModule', {
       logDir: testLogDir,
       level: LogLevel.WARN,
@@ -73,7 +74,7 @@ describe('Logger', () => {
     expect(logContent).toContain('This should appear');
   });
 
-  it('should format timestamp correctly', () => {
+  test('should format timestamp correctly', () => {
     const logger = new Logger('TestModule', {
       logDir: testLogDir,
       enableConsole: false,

@@ -1,44 +1,34 @@
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+import fs from 'fs';
+import path from 'path';
+import { $ } from 'bun';
 
 const PLATFORMS = [
-  { target: 'node18-win-x64', ext: '.exe', os: 'win' },
-  { target: 'node18-linux-x64', ext: '', os: 'linux' },
-  { target: 'node18-macos-x64', ext: '', os: 'macos' }
+  { target: 'bun-windows-x64', ext: '.exe', os: 'win' },
+  { target: 'bun-linux-x64', ext: '', os: 'linux' },
+  { target: 'bun-darwin-x64', ext: '', os: 'macos' }
 ];
 
-const VERSION = require('../package.json').version;
-const ROOT_DIR = path.join(__dirname, '..');
+const VERSION = '0.5.0';
+const ROOT_DIR = import.meta.dir.replace(/[/\\]scripts$/, '');
 
-function log(message) {
+function log(message: string) {
   console.log(`[build-release] ${message}`);
 }
 
-function runCommand(command, options = {}) {
-  log(`Running: ${command}`);
-  execSync(command, { stdio: 'inherit', ...options });
-}
-
-function ensureDir(dir) {
+function ensureDir(dir: string) {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
 }
 
-function copyFile(src, dest) {
+function copyFile(src: string, dest: string) {
   const destDir = path.dirname(dest);
   ensureDir(destDir);
   fs.copyFileSync(src, dest);
   log(`Copied: ${src} -> ${dest}`);
 }
 
-function buildTypeScript() {
-  log('Building TypeScript...');
-  runCommand('npm run build', { cwd: ROOT_DIR });
-}
-
-function buildForPlatform(platform) {
+async function buildForPlatform(platform: typeof PLATFORMS[0]) {
   log(`\nBuilding for ${platform.target}...`);
   
   const outputName = `deerflow-launcher${platform.ext}`;
@@ -47,26 +37,25 @@ function buildForPlatform(platform) {
   
   ensureDir(releaseDir);
   
-  runCommand(
-    `npx pkg . --targets ${platform.target} --output "${outputPath}"`,
-    { cwd: ROOT_DIR }
-  );
+  await $`bun build --compile --target=${platform.target} ./src/cli.ts --outfile ${outputPath}`.cwd(ROOT_DIR);
   
   const assetsDir = path.join(releaseDir, 'assets');
   ensureDir(assetsDir);
   
   const wrapperSrc = path.join(ROOT_DIR, 'scripts', 'wrapper.js');
-  const wrapperDest = path.join(assetsDir, 'wrapper.js');
-  copyFile(wrapperSrc, wrapperDest);
+  if (fs.existsSync(wrapperSrc)) {
+    const wrapperDest = path.join(assetsDir, 'wrapper.js');
+    copyFile(wrapperSrc, wrapperDest);
+  }
   
   log(`✓ Built ${outputPath}`);
   
   return { releaseDir, outputPath };
 }
 
-function createReadme(releaseDir, platform) {
-  const readmeContent = `DeerFlow Launcher v${VERSION}
-========================
+function createReadme(releaseDir: string, platform: typeof PLATFORMS[0]) {
+  const readmeContent = `DeerFlow Launcher v${VERSION} (Bun-powered)
+========================================
 
 This is the DeerFlow Launcher for ${platform.os}.
 
@@ -87,7 +76,7 @@ https://github.com/Skyline10124/deerflow-launcher
 
 Requirements:
   - Python 3.12+
-  - Node.js 22+
+  - Bun 1.0+ (bundled, no external runtime needed)
   - uv (Python package manager)
   - pnpm (Node.js package manager)
   - nginx
@@ -100,8 +89,7 @@ License: MIT
   log(`Created: ${readmePath}`);
 }
 
-function createReleasePackage(releaseDir, platform) {
-  const archiver = require('archiver');
+async function createReleasePackage(releaseDir: string, platform: typeof PLATFORMS[0]) {
   const outputExt = platform.os === 'win' ? 'zip' : 'tar.gz';
   const archivePath = path.join(
     ROOT_DIR, 
@@ -110,33 +98,26 @@ function createReleasePackage(releaseDir, platform) {
     `deerflow-launcher-v${VERSION}-${platform.os}-x64.${outputExt}`
   );
   
-  return new Promise((resolve, reject) => {
-    const output = fs.createWriteStream(archivePath);
-    const archive = archiver(outputExt === 'zip' ? 'zip' : 'tar', {
-      gzip: outputExt === 'tar.gz',
-      gzipOptions: { level: 9 }
-    });
-    
-    output.on('close', () => {
-      log(`Created archive: ${archivePath} (${(archive.pointer() / 1024 / 1024).toFixed(2)} MB)`);
-      resolve(archivePath);
-    });
-    
-    archive.on('error', reject);
-    archive.pipe(output);
-    archive.directory(releaseDir, false);
-    archive.finalize();
-  });
+  ensureDir(path.dirname(archivePath));
+  
+  if (platform.os === 'win') {
+    await $`powershell Compress-Archive -Path ${releaseDir}/* -DestinationPath ${archivePath} -Force`;
+  } else {
+    await $`tar -czf ${archivePath} -C ${releaseDir} .`;
+  }
+  
+  const stats = fs.statSync(archivePath);
+  log(`Created archive: ${archivePath} (${(stats.size / 1024 / 1024).toFixed(2)} MB)`);
+  
+  return archivePath;
 }
 
 async function main() {
-  log(`DeerFlow Launcher Build Script v${VERSION}`);
-  log('========================================\n');
-  
-  buildTypeScript();
+  log(`DeerFlow Launcher Build Script v${VERSION} (Bun)`);
+  log('===============================================\n');
   
   for (const platform of PLATFORMS) {
-    const { releaseDir } = buildForPlatform(platform);
+    const { releaseDir } = await buildForPlatform(platform);
     createReadme(releaseDir, platform);
     await createReleasePackage(releaseDir, platform);
   }

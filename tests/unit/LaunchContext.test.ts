@@ -9,12 +9,13 @@ import {
   formatDuration
 } from '../../src/core/LaunchContext';
 import { ServiceName, ServiceStatus, LaunchStatus } from '../../src/types';
+import { test, expect, describe } from 'bun:test';
 
 describe('LaunchContext', () => {
   const testPath = '/test/deerflow';
   const testLogDir = '/test/logs';
 
-  it('should create launch context with all services', () => {
+  test('should create launch context with all services', () => {
     const context = createLaunchContext(testPath, testLogDir);
 
     expect(context.status).toBe(LaunchStatus.IDLE);
@@ -27,7 +28,7 @@ describe('LaunchContext', () => {
     expect(context.services.has(ServiceName.NGINX)).toBe(true);
   });
 
-  it('should update service status', () => {
+  test('should update service status', () => {
     const context = createLaunchContext(testPath, testLogDir);
 
     updateServiceStatus(context, ServiceName.LANGGRAPH, ServiceStatus.HEALTHY, {
@@ -41,7 +42,7 @@ describe('LaunchContext', () => {
     expect(service?.healthCheckDuration).toBe(5000);
   });
 
-  it('should get all services', () => {
+  test('should get all services', () => {
     const context = createLaunchContext(testPath, testLogDir);
     const services = getAllServices(context);
 
@@ -52,7 +53,7 @@ describe('LaunchContext', () => {
     expect(services.map((s) => s.name)).toContain(ServiceName.NGINX);
   });
 
-  it('should filter healthy services', () => {
+  test('should filter healthy services', () => {
     const context = createLaunchContext(testPath, testLogDir);
 
     updateServiceStatus(context, ServiceName.LANGGRAPH, ServiceStatus.HEALTHY);
@@ -65,7 +66,7 @@ describe('LaunchContext', () => {
     expect(healthy.map((s) => s.name)).toContain(ServiceName.GATEWAY);
   });
 
-  it('should filter failed services', () => {
+  test('should filter failed services', () => {
     const context = createLaunchContext(testPath, testLogDir);
 
     updateServiceStatus(context, ServiceName.LANGGRAPH, ServiceStatus.HEALTHY);
@@ -79,7 +80,7 @@ describe('LaunchContext', () => {
     expect(failed[0].error).toBe('Test error');
   });
 
-  it('should set launch status', () => {
+  test('should set launch status', () => {
     const context = createLaunchContext(testPath, testLogDir);
 
     setLaunchStatus(context, LaunchStatus.CHECKING_ENV);
@@ -89,7 +90,7 @@ describe('LaunchContext', () => {
     expect(context.status).toBe(LaunchStatus.STARTING_SERVICES);
   });
 
-  it('should format duration correctly', () => {
+  test('should format duration correctly', () => {
     expect(formatDuration(30)).toBe('30s');
     expect(formatDuration(90)).toBe('1m 30s');
     expect(formatDuration(125)).toBe('2m 5s');
