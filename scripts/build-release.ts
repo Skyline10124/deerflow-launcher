@@ -16,6 +16,10 @@ function log(message: string) {
   console.log(`[build-release] ${message}`);
 }
 
+function warn(message: string) {
+  console.warn(`[build-release] WARNING: ${message}`);
+}
+
 function ensureDir(dir: string) {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
@@ -29,7 +33,21 @@ function copyFile(src: string, dest: string) {
   log(`Copied: ${src} -> ${dest}`);
 }
 
-async function buildForPlatform(platform: typeof PLATFORMS[0]) {
+function getCurrentPlatform(): typeof PLATFORMS[0] | undefined {
+  const platform = process.platform;
+  const arch = process.arch;
+  
+  if (platform === 'win32' && arch === 'x64') {
+    return PLATFORMS[0];
+  } else if (platform === 'linux' && arch === 'x64') {
+    return PLATFORMS[1];
+  } else if (platform === 'darwin' && arch === 'x64') {
+    return PLATFORMS[2];
+  }
+  return undefined;
+}
+
+async function buildForPlatform(platform: typeof PLATFORMS[0]): Promise<{ releaseDir: string; outputPath: string } | null> {
   log(`\nBuilding for ${platform.target}...`);
   
   const outputName = `deerflow-launcher${platform.ext}`;
@@ -38,7 +56,33 @@ async function buildForPlatform(platform: typeof PLATFORMS[0]) {
   
   ensureDir(releaseDir);
   
-  await $`bun build --compile --target=${platform.target} ./src/cli.ts --outfile ${outputPath}`.cwd(ROOT_DIR);
+  try {
+    const result = Bun.spawnSync([
+      'bun', 'build', '--compile',
+      `--target=${platform.target}`,
+      './src/cli.ts',
+      '--outfile', outputPath
+    ], {
+      cwd: ROOT_DIR,
+      stdio: ['inherit', 'pipe', 'pipe']
+    });
+    
+    if (result.exitCode !== 0) {
+      const stderr = result.stderr?.toString() || '';
+      if (stderr.includes('download may be incomplete') || stderr.includes('Failed to extract')) {
+        warn(`Cross-compilation for ${platform.target} failed (Bun runtime download issue).`);
+        warn(`To build for this platform, run the build script on that platform directly.`);
+        return null;
+      }
+      throw new Error(`Build failed with exit code ${result.exitCode}: ${stderr}`);
+    }
+    
+    log(`✓ Built ${outputPath}`);
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    warn(`Failed to build for ${platform.target}: ${errorMsg}`);
+    return null;
+  }
   
   const assetsDir = path.join(releaseDir, 'assets');
   ensureDir(assetsDir);
@@ -48,8 +92,6 @@ async function buildForPlatform(platform: typeof PLATFORMS[0]) {
     const wrapperDest = path.join(assetsDir, 'wrapper.js');
     copyFile(wrapperSrc, wrapperDest);
   }
-  
-  log(`✓ Built ${outputPath}`);
   
   return { releaseDir, outputPath };
 }
@@ -124,16 +166,67 @@ async function createReleasePackage(releaseDir: string, platform: typeof PLATFOR
 }
 
 async function main() {
+  const args = process.argv.slice(2);
+  const currentOnly = args.includes('--current') || args.includes('-c');
+  const platformArg = args.find(a => !a.startsWith('-'));
+  
   log(`DeerFlow Launcher Build Script v${VERSION} (Bun)`);
   log('===============================================\n');
   
-  for (const platform of PLATFORMS) {
-    const { releaseDir } = await buildForPlatform(platform);
-    createReadme(releaseDir, platform);
-    await createReleasePackage(releaseDir, platform);
+  let platformsToBuild: typeof PLATFORMS;
+  
+  if (currentOnly) {
+    const current = getCurrentPlatform();
+    if (!current) {
+      console.error('Cannot determine current platform for building.');
+      process.exit(1);
+    }
+    platformsToBuild = [current];
+    log(`Building for current platform only: ${current.target}`);
+  } else if (platformArg) {
+    const found = PLATFORMS.find(p => p.os === platformArg || p.target === platformArg);
+    if (!found) {
+      console.error(`Unknown platform: ${platformArg}. Available: ${PLATFORMS.map(p => p.os).join(', ')}`);
+      process.exit(1);
+    }
+    platformsToBuild = [found];
+    log(`Building for specified platform: ${found.target}`);
+  } else {
+    platformsToBuild = PLATFORMS;
+    log('Building for all platforms...');
   }
   
-  log('\n✓ Build complete!');
+  const results: { platform: string; success: boolean; archive?: string }[] = [];
+  
+  for (const platform of platformsToBuild) {
+    const buildResult = await buildForPlatform(platform);
+    
+    if (buildResult) {
+      createReadme(buildResult.releaseDir, platform);
+      const archivePath = await createReleasePackage(buildResult.releaseDir, platform);
+      results.push({ platform: platform.os, success: true, archive: archivePath });
+    } else {
+      results.push({ platform: platform.os, success: false });
+    }
+  }
+  
+  log('\n===============================================');
+  log('Build Summary:');
+  for (const result of results) {
+    if (result.success) {
+      log(`  ✓ ${result.platform}: ${result.archive}`);
+    } else {
+      log(`  ✗ ${result.platform}: Failed (skipped)`);
+    }
+  }
+  
+  const successCount = results.filter(r => r.success).length;
+  if (successCount === 0) {
+    console.error('\nAll builds failed!');
+    process.exit(1);
+  }
+  
+  log(`\n✓ ${successCount}/${results.length} platform(s) built successfully.`);
   log(`Output directory: ${path.join(ROOT_DIR, 'dist', 'release')}`);
 }
 

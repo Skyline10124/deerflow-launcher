@@ -19,9 +19,10 @@
     "test:integration": "bun test tests/integration",
     "build": "bun build src/cli.ts src/main.ts --outdir=dist --target=bun",
     "build:release": "bun run scripts/build-release.ts",
-    "build:win": "bun build --compile --target=bun-windows-x64 ./src/cli.ts --outfile dist/bin/deerflow-launcher.exe",
-    "build:linux": "bun build --compile --target=bun-linux-x64 ./src/cli.ts --outfile dist/bin/deerflow-launcher",
-    "build:mac": "bun build --compile --target=bun-darwin-x64 ./src/cli.ts --outfile dist/bin/deerflow-launcher"
+    "build:release:current": "bun run scripts/build-release.ts --current",
+    "build:win": "bun run scripts/build-release.ts win",
+    "build:linux": "bun run scripts/build-release.ts linux",
+    "build:mac": "bun run scripts/build-release.ts macos"
   },
   "keywords": [
     "deerflow",
