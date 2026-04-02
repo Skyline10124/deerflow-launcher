@@ -34,6 +34,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       build_time: ${{ steps.version.outputs.build_time }}
+      release_date: ${{ steps.version.outputs.release_date }}
 
     steps:
       - name: Checkout code
@@ -62,8 +63,10 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           BUILD_TIME=$(date +%Y%m%d_%H%M)
+          RELEASE_DATE=$(date +%Y-%m-%d)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "build_time=$BUILD_TIME" >> $GITHUB_OUTPUT
+          echo "release_date=$RELEASE_DATE" >> $GITHUB_OUTPUT
 
       - name: Prepare release directory
         shell: bash
@@ -131,6 +134,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Extract changelog
+        id: changelog
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          
+          CHANGELOG=$(awk -v ver="## \\[${VERSION}\\]" '
+            $0 ~ ver {found=1; next}
+            found && /^## \[/ {exit}
+            found {print}
+          ' CHANGELOG.md)
+          
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -142,34 +166,41 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: DeerFlow Launcher v${{ needs.build.outputs.version }}
+          name: DeerFlow Launcher v${{ steps.version.outputs.version }} ${{ needs.build.outputs.release_date }}
           body: |
-            ## DeerFlow Launcher v${{ needs.build.outputs.version }}
+            ## 更新日志
             
-            ### Downloads
+            ${{ steps.changelog.outputs.changelog }}
+            
+            ---
+            
+            ## 下载
+            
             - **Windows**: `deerflow-launcher_*_win-x64_*.zip`
             - **Linux**: `deerflow-launcher_*_linux-x64_*.tar.gz`
             - **macOS**: `deerflow-launcher_*_macos-x64_*.tar.gz`
             
-            ### Requirements
+            ## 系统要求
+            
             - Python 3.12+
             - Node.js 22+
-            - uv (Python package manager)
-            - pnpm (Node.js package manager)
+            - uv (Python 包管理器)
+            - pnpm (Node.js 包管理器)
             - nginx
             
-            ### Usage
-            ```bash
-            # Extract the archive
-            tar -xzf deerflow-launcher_*.tar.gz  # Linux/macOS
-            # or unzip deerflow-launcher_*.zip   # Windows
+            ## 使用方法
             
-            # Run the launcher
+            ```bash
+            # 解压压缩包
+            tar -xzf deerflow-launcher_*.tar.gz  # Linux/macOS
+            # 或 unzip deerflow-launcher_*.zip   # Windows
+            
+            # 运行启动器
             ./deerflow-launcher --help
             ```
           files: |
             artifacts/**/*
           draft: false
-          prerelease: false
+          prerelease: ${{ contains(steps.version.outputs.version, 'alpha') || contains(steps.version.outputs.version, 'beta') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

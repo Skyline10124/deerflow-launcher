@@ -1,6 +1,6 @@
 {
   "name": "deerflow-launcher",
-  "version": "0.4.1",
+  "version": "0.4.1-alpha",
   "description": "DeerFlow Desktop Launcher - Service management and startup",
   "main": "dist/src/main.js",
   "bin": {
