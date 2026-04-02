@@ -13,6 +13,7 @@ import * as fs from 'fs';
 import { Logger, getLogger } from './Logger';
 import { HealthChecker } from './HealthChecker';
 import { PM2Runtime, getScriptPath } from './PM2Runtime';
+import { loadDotEnv } from '../utils/env';
 import {
   ServiceDefinition,
   ServiceInstance,
@@ -106,17 +107,24 @@ export class ProcessManager {
   private logDir: string;
   /** PM2 运行时实例 / PM2 runtime instance */
   private pm2Runtime: PM2Runtime | null = null;
+  /** DeerFlow 项目根目录 / DeerFlow project root directory */
+  private deerflowPath: string;
+  /** 从 .env 文件加载的环境变量 / Environment variables loaded from .env file */
+  private dotEnvVars: Record<string, string> = {};
 
   /**
    * 创建进程管理器实例
    * Create a ProcessManager instance
-   * 
+   *
    * @param logDir - 日志目录路径 / Log directory path
+   * @param deerflowPath - DeerFlow 项目根目录 / DeerFlow project root directory
    */
-  constructor(logDir: string) {
+  constructor(logDir: string, deerflowPath: string) {
     this.logger = getLogger('ProcessMgr');
     this.healthChecker = new HealthChecker();
     this.logDir = logDir;
+    this.deerflowPath = deerflowPath;
+    this.dotEnvVars = loadDotEnv(deerflowPath);
   }
 
   /**
@@ -313,8 +321,8 @@ export class ProcessManager {
       error_file: logFile,
       merge_logs: true,
       time: true,
-      env: service.env,
-      ...(isWindows && !isNodeScript ? { 
+      env: { ...this.dotEnvVars, ...service.env },
+      ...(isWindows && !isNodeScript ? {
         windowsHide: true,
         kill_timeout: 3000
       } : {})

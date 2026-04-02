@@ -165,7 +165,7 @@ class ServiceManagerAdapter implements IServiceManager {
     this.logDir = getLogDir();
     this.logger = new Logger('CLI', { logDir: this.logDir });
     setDefaultLogger(this.logger);
-    this.processManager = new ProcessManager(this.logDir);
+    this.processManager = new ProcessManager(this.logDir, getDeerFlowPath());
     this.processMonitor = new ProcessMonitor();
     this.logService = new LogServiceAdapter();
     this.configService = new ConfigServiceAdapter();

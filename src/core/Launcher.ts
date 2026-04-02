@@ -60,7 +60,7 @@ export class Launcher {
     this.context = createLaunchContext(options.deerflowPath, logDir);
     this.envChecker = new EnvChecker();
     this.configInitializer = new ConfigInitializer(options.deerflowPath, logDir);
-    this.processManager = new ProcessManager(logDir);
+    this.processManager = new ProcessManager(logDir, options.deerflowPath);
     this.processMonitor = new ProcessMonitor();
     this.configWatcher = new ConfigWatcher(options.deerflowPath);
   }

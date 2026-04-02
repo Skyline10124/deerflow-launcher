@@ -9,7 +9,7 @@ const CLEAN_MODE = process.argv.includes('--clean') || process.argv.includes('-c
 
 async function cleanupAllProcesses(): Promise<void> {
   console.log('Cleaning up all managed processes...');
-  const pm = new ProcessManager(path.join(process.cwd(), 'logs'));
+  const pm = new ProcessManager(path.join(process.cwd(), 'logs'), getDeerFlowPath());
   await pm.connect();
   await pm.killAllManagedProcesses();
   await pm.disconnect();

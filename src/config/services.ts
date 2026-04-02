@@ -35,13 +35,15 @@ function getPnpmCommand(): string {
 }
 
 export function getServiceDefinitions(deerflowPath: string, options?: ServiceOptions): ServiceDefinition[] {
-  const langgraphArgs = ['run', 'langgraph', 'dev', '--port', String(SERVICE_PORTS[ServiceName.LANGGRAPH])];
+  const langgraphArgs = ['run', 'langgraph', 'dev', '--port', String(SERVICE_PORTS[ServiceName.LANGGRAPH]), '--allow-blocking'];
   
   if (!options?.langsmith) {
     langgraphArgs.push('--no-browser');
   }
   
-  const langsmithEnv: Record<string, string> = {};
+  const langsmithEnv: Record<string, string> = {
+    NO_COLOR: '1'
+  };
   if (options?.langsmith) {
     langsmithEnv.LANGSMITH_TRACING = 'true';
   } else {
@@ -67,7 +69,7 @@ export function getServiceDefinitions(deerflowPath: string, options?: ServiceOpt
       port: SERVICE_PORTS[ServiceName.GATEWAY],
       timeout: SERVICE_TIMEOUTS[ServiceName.GATEWAY],
       dependencies: [ServiceName.LANGGRAPH],
-      env: langsmithEnv
+      env: { PYTHONPATH: '.', ...langsmithEnv }
     },
     {
       name: ServiceName.FRONTEND,
