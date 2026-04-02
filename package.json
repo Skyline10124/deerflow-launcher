@@ -39,6 +39,7 @@
     "ora": "^8.2.0"
   },
   "devDependencies": {
+    "@types/archiver": "^7.0.0",
     "@types/bun": "latest",
     "@types/inquirer": "^9.0.7",
     "@types/node": "^22.19.15",

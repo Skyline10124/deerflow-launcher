@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { $ } from 'bun';
+import archiver from 'archiver';
 
 const PLATFORMS = [
   { target: 'bun-windows-x64', ext: '.exe', os: 'win' },
@@ -101,7 +102,17 @@ async function createReleasePackage(releaseDir: string, platform: typeof PLATFOR
   ensureDir(path.dirname(archivePath));
   
   if (platform.os === 'win') {
-    await $`powershell Compress-Archive -Path ${releaseDir}/* -DestinationPath ${archivePath} -Force`;
+    await new Promise<void>((resolve, reject) => {
+      const output = fs.createWriteStream(archivePath);
+      const archive = archiver('zip', { zlib: { level: 9 } });
+      
+      output.on('close', () => resolve());
+      archive.on('error', (err) => reject(err));
+      
+      archive.pipe(output);
+      archive.directory(releaseDir, false);
+      archive.finalize();
+    });
   } else {
     await $`tar -czf ${archivePath} -C ${releaseDir} .`;
   }
