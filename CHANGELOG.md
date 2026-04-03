@@ -5,6 +5,52 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)，
 本项目遵循 [语义化版本](https://semver.org/spec/v2.0.0.html)。
 
+## \[0.4.2-alpha] - 2026-04-03
+
+### 新增
+
+- **TUI 基础设施 (Phase 1)**：为后续 Dashboard 开发搭建基础
+  - 安装 React + Ink 依赖 (`react@18.3.1`, `ink@5`, `ink-spinner@5.0.0`, `ink-text-input@6.0.0`)
+  - 创建 `src/tui/` 目录结构
+  - 添加测试依赖 (`jest`, `@testing-library/react@14`, `ink-testing-library`)
+
+- **TUI 组件库**：
+  - `ServiceCard` - 服务状态卡片组件
+  - `ServiceGrid` - 服务网格布局组件
+  - `LogPanel` - 日志面板组件
+  - `CommandInput` - 命令输入组件
+
+- **TUI Hooks**：
+  - `useServiceStatus` - 服务状态订阅 Hook
+  - `useLogStream` - 日志流管理 Hook
+  - `useKeyboard` - 键盘事件处理 Hook
+  - `useTerminalSize` - 终端尺寸监听 Hook
+
+- **工具函数**：
+  - `colors.ts` - 状态颜色常量
+  - `icons.ts` - 状态图标常量
+  - `format.ts` - 格式化工具（内存、运行时间、进度条）
+
+### 变更
+
+- **TypeScript 配置**：更新 `module` 和 `moduleResolution` 为 `NodeNext`
+  - 支持现代 ES Module 库（如 `ink`）的类型解析
+  - 保持 CommonJS 输出兼容性
+
+- **pkg 打包配置**：添加 React/Ink 相关资源到打包配置
+
+### 依赖变更
+
+#### 新增
+
+- `react@^18.3.1` - UI 框架
+- `ink@^5.2.1` - 终端 UI 渲染
+- `ink-spinner@^5.0.0` - 加载动画
+- `ink-text-input@^6.0.0` - 文本输入
+- `@types/react@^18.3.0` - React 类型定义（开发依赖）
+- `@testing-library/react@14` - React 测试库（开发依赖）
+- `ink-testing-library` - Ink 测试库（开发依赖）
+
 ## \[0.4.1-alpha] - 2026-04-03
 
 ### 新增
