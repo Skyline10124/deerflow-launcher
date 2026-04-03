@@ -15,7 +15,7 @@ export function registerStartCommand(
     .command('start [services...]')
     .description('Start DeerFlow services')
     .option('-w, --watch', 'Watch configuration files for changes', false)
-    .option('-d, --detach', 'Run services in background', false)
+    .option('-b, --detach', 'Run services in background', false)
     .option('-t, --timeout <seconds>', 'Startup timeout', '60')
     .option('-l, --langsmith', 'Enable LangSmith tracing', false)
     .action(async (serviceNames: string[], options) => {
