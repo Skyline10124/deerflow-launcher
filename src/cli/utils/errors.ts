@@ -13,6 +13,7 @@ export enum ErrorCode {
   CONFIG_INVALID = 200,
   CONFIG_PARSE_ERROR = 201,
   CONFIG_VALIDATION_FAILED = 202,
+  CONFIG_KEY_NOT_FOUND = 203,
   
   ENV_NODE_VERSION = 300,
   ENV_PM2_NOT_FOUND = 301,
@@ -85,6 +86,7 @@ export const ErrorMessages: Record<ErrorCode, string> = {
   [ErrorCode.CONFIG_INVALID]: 'Invalid configuration',
   [ErrorCode.CONFIG_PARSE_ERROR]: 'Failed to parse configuration',
   [ErrorCode.CONFIG_VALIDATION_FAILED]: 'Configuration validation failed',
+  [ErrorCode.CONFIG_KEY_NOT_FOUND]: 'Configuration key not found',
   
   [ErrorCode.ENV_NODE_VERSION]: 'Node.js version mismatch',
   [ErrorCode.ENV_PM2_NOT_FOUND]: 'PM2 not found',
@@ -111,6 +113,7 @@ export const ErrorSuggestions: Record<ErrorCode, string> = {
   [ErrorCode.CONFIG_INVALID]: 'Run "deerflow config validate" to check configuration',
   [ErrorCode.CONFIG_PARSE_ERROR]: 'Check the configuration file syntax',
   [ErrorCode.CONFIG_VALIDATION_FAILED]: 'Fix the validation errors and try again',
+  [ErrorCode.CONFIG_KEY_NOT_FOUND]: 'Use "deerflow config path list" to see available paths',
   
   [ErrorCode.ENV_NODE_VERSION]: 'Install Node.js 22 or higher',
   [ErrorCode.ENV_PM2_NOT_FOUND]: 'Run "npm install -g pm2"',

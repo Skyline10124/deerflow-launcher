@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import type { IServiceManager } from '../../../core/interfaces/IServiceManager.js';
 import { CLIError, ErrorCode } from '../../utils/errors.js';
+import { registerConfigPathCommands } from './path.js';
 
 export function registerConfigCommands(
   program: Command,
@@ -105,4 +106,6 @@ export function registerConfigCommands(
         );
       }
     });
+
+  registerConfigPathCommands(configCmd);
 }

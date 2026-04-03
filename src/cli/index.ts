@@ -21,25 +21,30 @@ import { Logger, setDefaultLogger } from '../modules/Logger.js';
 import { ConfigInitializer } from '../modules/ConfigInitializer.js';
 import { SERVICE_START_ORDER, getServiceDefinitions } from '../config/services.js';
 import { existsSync } from 'fs';
-import { getDeerFlowPath } from '../utils/env.js';
+import { getDeerFlowPath, clearCache } from '../utils/env.js';
 import { getPackageVersion } from '../utils/version.js';
 
-/**
- * 获取日志目录路径
- * Get log directory path
- * 
- * 日志目录在 DeerFlow 项目目录下的 logs 文件夹
- * Log directory is the logs folder under DeerFlow project directory
- */
+let globalDeerFlowPath: string | undefined;
+let globalUsePath: string | undefined;
+
+export function setGlobalDeerFlowPath(path: string | undefined): void {
+  globalDeerFlowPath = path;
+  clearCache();
+}
+
+export function setGlobalUsePath(name: string | undefined): void {
+  globalUsePath = name;
+  clearCache();
+}
+
 function getLogDir(): string {
-  const deerflowPath = getDeerFlowPath();
+  const deerflowPath = getDeerFlowPath({
+    cliPath: globalDeerFlowPath,
+    usePath: globalUsePath,
+  });
   return join(deerflowPath, 'logs');
 }
 
-/**
- * 日志服务适配器
- * 实现 ILogService 接口，提供日志读取、监听和清理功能
- */
 class LogServiceAdapter implements ILogService {
   private logManager: LogManager;
 
@@ -97,15 +102,14 @@ class LogServiceAdapter implements ILogService {
   }
 }
 
-/**
- * 配置服务适配器
- * 实现 IConfigService 接口，提供配置读取和验证功能
- */
 class ConfigServiceAdapter implements IConfigService {
   async get(key: string): Promise<unknown> {
     switch (key) {
       case 'deerflowPath':
-        return getDeerFlowPath();
+        return getDeerFlowPath({
+          cliPath: globalDeerFlowPath,
+          usePath: globalUsePath,
+        });
       case 'logDir':
         return getLogDir();
       case 'services':
@@ -125,7 +129,10 @@ class ConfigServiceAdapter implements IConfigService {
   async validate(): Promise<{ valid: boolean; errors: string[] }> {
     const errors: string[] = [];
     
-    if (!existsSync(getDeerFlowPath())) {
+    if (!existsSync(getDeerFlowPath({
+      cliPath: globalDeerFlowPath,
+      usePath: globalUsePath,
+    }))) {
       errors.push('DeerFlow path does not exist');
     }
     
@@ -136,7 +143,10 @@ class ConfigServiceAdapter implements IConfigService {
   }
 
   async init(): Promise<void> {
-    const deerflowPath = getDeerFlowPath();
+    const deerflowPath = getDeerFlowPath({
+      cliPath: globalDeerFlowPath,
+      usePath: globalUsePath,
+    });
     const logDir = getLogDir();
     const configInitializer = new ConfigInitializer(deerflowPath, logDir);
     if (!configInitializer.validateDeerFlowPath()) {
@@ -151,10 +161,6 @@ class ConfigServiceAdapter implements IConfigService {
   }
 }
 
-/**
- * 服务管理器适配器
- * 实现 IServiceManager 接口，整合进程管理、日志和配置服务
- */
 class ServiceManagerAdapter implements IServiceManager {
   private processManager: ProcessManager;
   private processMonitor: ProcessMonitor;
@@ -167,7 +173,10 @@ class ServiceManagerAdapter implements IServiceManager {
     this.logDir = getLogDir();
     this.logger = new Logger('CLI', { logDir: this.logDir });
     setDefaultLogger(this.logger);
-    this.processManager = new ProcessManager(this.logDir, getDeerFlowPath());
+    this.processManager = new ProcessManager(this.logDir, getDeerFlowPath({
+      cliPath: globalDeerFlowPath,
+      usePath: globalUsePath,
+    }));
     this.processMonitor = new ProcessMonitor();
     this.logService = new LogServiceAdapter();
     this.configService = new ConfigServiceAdapter();
@@ -180,7 +189,10 @@ class ServiceManagerAdapter implements IServiceManager {
     timeout?: number;
     langsmith?: boolean;
   }): Promise<void> {
-    const deerflowPath = getDeerFlowPath();
+    const deerflowPath = getDeerFlowPath({
+      cliPath: globalDeerFlowPath,
+      usePath: globalUsePath,
+    });
     
     const configInitializer = new ConfigInitializer(deerflowPath, this.logDir);
     if (!configInitializer.validateDeerFlowPath()) {
@@ -329,7 +341,6 @@ class ServiceManagerAdapter implements IServiceManager {
     return this.configService;
   }
 
-  /** 将 PM2 状态字符串映射为 ServiceStatusInfo 状态 */
   private mapStatus(status: string): ServiceStatusInfo['status'] {
     const statusMap: Record<string, ServiceStatusInfo['status']> = {
       'stopped': 'offline',
@@ -341,7 +352,6 @@ class ServiceManagerAdapter implements IServiceManager {
     return statusMap[status] || 'offline';
   }
 
-  /** 将毫秒格式化为可读的运行时间字符串 */
   private formatUptime(uptimeMs: number): string | undefined {
     if (!uptimeMs) return undefined;
     
@@ -377,7 +387,9 @@ export async function createCLI(): Promise<Command> {
   program
     .name('deerflow')
     .description('DeerFlow Desktop Launcher CLI')
-    .version(getPackageVersion(), '-v, --version');
+    .version(getPackageVersion(), '-v, --version')
+    .option('-d, --deerflow-path <path>', 'DeerFlow project path')
+    .option('-p, --use-path <name>', 'Use a configured path by name');
 
   program.exitOverride();
 
@@ -425,6 +437,17 @@ export async function createCLI(): Promise<Command> {
 export async function runCLI(): Promise<void> {
   try {
     const program = await createCLI();
+    
+    program.hook('preAction', (thisCommand) => {
+      const options = thisCommand.opts();
+      if (options.deerflowPath) {
+        setGlobalDeerFlowPath(options.deerflowPath);
+      }
+      if (options.usePath) {
+        setGlobalUsePath(options.usePath);
+      }
+    });
+    
     await program.parseAsync(process.argv);
   } catch (error: unknown) {
     const err = error as { code?: string };

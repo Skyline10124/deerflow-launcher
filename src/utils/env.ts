@@ -1,24 +1,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { getLogger } from '../modules/Logger.js';
+import { getDefaultPath, getPath } from '../modules/LauncherConfig.js';
 
 const logger = getLogger('Env');
 
 let cachedDeerFlowPath: string | null = null;
 let cachedEnvVars: Record<string, string> | null = null;
 
-/**
- * Parse a .env file and return key-value pairs.
- *
- * Supports:
- * - KEY=VALUE (unquoted)
- * - KEY="VALUE" (double-quoted, preserves inner spaces)
- * - KEY='VALUE' (single-quoted, preserves inner spaces)
- * - # comments and blank lines (skipped)
- * - Lines with export prefix: export KEY=VALUE
- *
- * Does NOT support multiline values.
- */
 function parseDotEnvFile(envFilePath: string): Record<string, string> {
   if (!fs.existsSync(envFilePath)) {
     return {};
@@ -76,22 +65,7 @@ function parseDotEnvFile(envFilePath: string): Record<string, string> {
   return result;
 }
 
-/**
- * 查找 DeerFlow 项目根目录
- * 按以下顺序查找:
- * 1. DEERFLOW_PATH 环境变量
- * 2. 向上递归查找包含 config.example.yaml, backend 和 frontend 文件夹的目录
- * 3. 抛出错误或返回 fallback 目录
- */
 function findDeerFlowPath(): string {
-  const envPath = process.env.DEERFLOW_PATH;
-  if (envPath) {
-    if (!fs.existsSync(envPath)) {
-      throw new Error(`DEERFLOW_PATH environment variable points to non-existent path: ${envPath}`);
-    }
-    return envPath;
-  }
-
   let currentPath = process.cwd();
   
   while (currentPath !== path.dirname(currentPath)) {
@@ -113,24 +87,82 @@ function findDeerFlowPath(): string {
   throw new Error(
     'Could not find DeerFlow project root.\n\n' +
     'Please either:\n' +
-    '  1. Set DEERFLOW_PATH environment variable to the DeerFlow directory\n' +
-    '  2. Run this launcher from the DeerFlow directory\n' +
-    '  3. Run this launcher from a subdirectory of DeerFlow'
+    '  1. Use --deerflow-path option\n' +
+    '  2. Set a default path with: deerflow config path add <name> <path>\n' +
+    '  3. Set DEERFLOW_PATH environment variable\n' +
+    '  4. Run this launcher from the DeerFlow directory'
   );
 }
 
-/**
- * 获取 DeerFlow 项目根目录
- * 
- * 首次调用时会缓存路径并加载 .env 文件
- * 后续调用直接返回缓存的路径
- */
-export function getDeerFlowPath(): string {
+function validatePath(deerflowPath: string): boolean {
+  if (!fs.existsSync(deerflowPath)) {
+    return false;
+  }
+  const hasConfig = fs.existsSync(path.join(deerflowPath, 'config.example.yaml'));
+  const hasBackend = fs.existsSync(path.join(deerflowPath, 'backend'));
+  const hasFrontend = fs.existsSync(path.join(deerflowPath, 'frontend'));
+  return hasConfig || (hasBackend && hasFrontend);
+}
+
+export interface GetDeerFlowPathOptions {
+  cliPath?: string;
+  usePath?: string;
+}
+
+export function getDeerFlowPath(options?: GetDeerFlowPathOptions): string {
   if (cachedDeerFlowPath) {
     return cachedDeerFlowPath;
   }
 
-  cachedDeerFlowPath = findDeerFlowPath();
+  let deerflowPath: string | undefined;
+
+  if (options?.cliPath) {
+    if (validatePath(options.cliPath)) {
+      deerflowPath = options.cliPath;
+      logger.debug(`Using CLI path: ${deerflowPath}`);
+    } else {
+      logger.warn(`CLI path invalid: ${options.cliPath}`);
+    }
+  }
+
+  if (!deerflowPath && options?.usePath) {
+    const namedPath = getPath(options.usePath);
+    if (namedPath && validatePath(namedPath.path)) {
+      deerflowPath = namedPath.path;
+      logger.debug(`Using named path "${namedPath.name}": ${deerflowPath}`);
+    } else if (namedPath) {
+      logger.warn(`Named path "${options.usePath}" is invalid: ${namedPath.path}`);
+    } else {
+      logger.warn(`Named path "${options.usePath}" not found in config`);
+    }
+  }
+
+  if (!deerflowPath) {
+    const configPath = getDefaultPath();
+    if (configPath && validatePath(configPath.path)) {
+      deerflowPath = configPath.path;
+      logger.debug(`Using default config path "${configPath.name}": ${deerflowPath}`);
+    }
+  }
+
+  if (!deerflowPath) {
+    const envPath = process.env.DEERFLOW_PATH;
+    if (envPath) {
+      if (fs.existsSync(envPath)) {
+        deerflowPath = envPath;
+        logger.debug(`Using DEERFLOW_PATH: ${deerflowPath}`);
+      } else {
+        logger.warn(`DEERFLOW_PATH points to non-existent path: ${envPath}`);
+      }
+    }
+  }
+
+  if (!deerflowPath) {
+    deerflowPath = findDeerFlowPath();
+    logger.debug(`Using auto-detected path: ${deerflowPath}`);
+  }
+
+  cachedDeerFlowPath = deerflowPath;
   
   if (!cachedEnvVars) {
     const envFile = path.join(cachedDeerFlowPath, '.env');
@@ -140,11 +172,6 @@ export function getDeerFlowPath(): string {
   return cachedDeerFlowPath;
 }
 
-/**
- * 加载并返回 .env 文件中的环境变量
- * 
- * @param deerflowPath - 可选的 DeerFlow 路径，如果不提供则自动查找
- */
 export function loadDotEnv(deerflowPath?: string): Record<string, string> {
   if (cachedEnvVars) {
     return cachedEnvVars;
@@ -157,17 +184,11 @@ export function loadDotEnv(deerflowPath?: string): Record<string, string> {
   return cachedEnvVars;
 }
 
-/**
- * 获取 .env 中的指定变量
- */
 export function getEnvVar(key: string, defaultValue?: string): string | undefined {
   const envVars = loadDotEnv();
   return envVars[key] ?? defaultValue;
 }
 
-/**
- * 清除缓存 (主要用于测试)
- */
 export function clearCache(): void {
   cachedDeerFlowPath = null;
   cachedEnvVars = null;

@@ -33,6 +33,20 @@ npm install
 
 ### CLI 命令
 
+#### 全局选项
+
+```bash
+deerflow-launcher [options] [command]
+
+选项:
+  -v, --version                显示版本号
+  -d, --deerflow-path <path>   指定 DeerFlow 项目路径
+  -p, --use-path <name>        使用配置的命名路径
+  -h, --help                   显示帮助信息
+```
+
+#### 服务管理
+
 ```bash
 # 查看帮助
 deerflow-launcher --help
@@ -73,12 +87,85 @@ deerflow-launcher clean                    # 清理 PM2 实例
 
 ### 设置 DeerFlow 路径
 
+Launcher 支持多种方式指定 DeerFlow 项目路径，按优先级排序：
+
+1. **命令行参数** `--deerflow-path <path>`
+2. **命名路径** `--use-path <name>` (使用配置的命名路径)
+3. **配置文件默认路径** (通过 `config path default` 设置)
+4. **环境变量** `DEERFLOW_PATH`
+5. **自动查找** (从当前目录向上查找包含 `config.example.yaml` 的目录)
+
+#### 方式一：命令行参数
+
+```bash
+# 直接指定路径
+deerflow-launcher -d /path/to/deer-flow start
+
+# 或使用完整选项名
+deerflow-launcher --deerflow-path /path/to/deer-flow start
+```
+
+#### 方式二：配置命名路径
+
+```bash
+# 添加路径配置
+deerflow-launcher config path add dev /path/to/deer-flow-dev --default
+deerflow-launcher config path add prod /path/to/deer-flow-prod
+
+# 使用命名路径
+deerflow-launcher -p dev start    # 使用 dev 路径
+deerflow-launcher -p prod start   # 使用 prod 路径
+
+# 查看所有配置的路径
+deerflow-launcher config path list
+
+# 设置默认路径
+deerflow-launcher config path default dev
+```
+
+#### 方式三：环境变量
+
 ```bash
 # Linux/macOS
 export DEERFLOW_PATH=/path/to/deer-flow
 
 # Windows PowerShell
 $env:DEERFLOW_PATH = "C:\path\to\deer-flow"
+```
+
+#### 路径配置命令
+
+```bash
+# 添加路径
+deerflow-launcher config path add <name> <path> [options]
+  --default      设为默认路径
+  -d, --description <desc>  路径描述
+
+# 列出所有路径
+deerflow-launcher config path list
+
+# 设置默认路径
+deerflow-launcher config path default <name>
+
+# 显示路径详情
+deerflow-launcher config path show [name]
+
+# 删除路径
+deerflow-launcher config path remove <name>
+```
+
+#### 配置文件位置
+
+路径配置保存在 `~/.deerflow/launcher.json`：
+
+```json
+{
+  "paths": [
+    { "name": "dev", "path": "/path/to/deer-flow-dev", "description": "开发环境" },
+    { "name": "prod", "path": "/path/to/deer-flow-prod", "description": "生产环境" }
+  ],
+  "defaultPath": "dev"
+}
 ```
 
 ### 开发模式
