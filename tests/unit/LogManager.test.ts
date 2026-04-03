@@ -1,4 +1,5 @@
 import { LogManager } from '../../src/modules/LogManager.js';
+import { UnifiedLogLevel, UnifiedLogEntry } from '../../src/modules/LogParser.js';
 import { ServiceName } from '../../src/types/index.js';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -75,10 +76,10 @@ describe('LogManager', () => {
     
     fs.writeFileSync(path.join(testLogDir, 'launcher.log'), logContent);
     
-    const entries = logManager.readLogs({ service: 'launcher', level: 'ERROR' });
+    const entries = logManager.readLogs({ service: 'launcher', level: UnifiedLogLevel.ERROR });
     
     expect(entries.length).toBe(1);
-    expect(entries[0].level).toBe('ERROR');
+    expect(entries[0].level).toBe(UnifiedLogLevel.ERROR);
   });
 
   it('should filter logs by search term', () => {
@@ -137,9 +138,17 @@ describe('LogManager', () => {
   });
 
   it('should format entries as text', () => {
-    const entries = [
-      { timestamp: '2024-01-01T00:00:00.000Z', level: 'INFO', module: 'Test', message: 'Msg 1', raw: '[2024-01-01T00:00:00.000Z] [INFO] [Test] Msg 1' },
-      { timestamp: '2024-01-01T00:00:01.000Z', level: 'ERROR', module: 'Test', message: 'Msg 2', raw: '[2024-01-01T00:00:01.000Z] [ERROR] [Test] Msg 2' }
+    const entries: UnifiedLogEntry[] = [
+      { 
+        id: '1', timestamp: new Date('2024-01-01T00:00:00.000Z'), level: UnifiedLogLevel.INFO, 
+        message: 'Msg 1', service: 'launcher', displayTime: '00:00:00', 
+        levelColor: '', serviceColor: '', formattedLine: '[INFO] Msg 1', raw: '[2024-01-01T00:00:00.000Z] [INFO] [Test] Msg 1' 
+      },
+      { 
+        id: '2', timestamp: new Date('2024-01-01T00:00:01.000Z'), level: UnifiedLogLevel.ERROR, 
+        message: 'Msg 2', service: 'launcher', displayTime: '00:00:01', 
+        levelColor: '', serviceColor: '', formattedLine: '[ERROR] Msg 2', raw: '[2024-01-01T00:00:01.000Z] [ERROR] [Test] Msg 2' 
+      }
     ];
     
     const text = logManager.formatEntries(entries, 'text');
@@ -149,8 +158,12 @@ describe('LogManager', () => {
   });
 
   it('should format entries as JSON', () => {
-    const entries = [
-      { timestamp: '2024-01-01T00:00:00.000Z', level: 'INFO', module: 'Test', message: 'Msg 1', raw: 'raw' }
+    const entries: UnifiedLogEntry[] = [
+      { 
+        id: '1', timestamp: new Date('2024-01-01T00:00:00.000Z'), level: UnifiedLogLevel.INFO, 
+        message: 'Msg 1', service: 'launcher', displayTime: '00:00:00', 
+        levelColor: '', serviceColor: '', formattedLine: '[INFO] Msg 1', raw: 'raw' 
+      }
     ];
     
     const json = logManager.formatEntries(entries, 'json');

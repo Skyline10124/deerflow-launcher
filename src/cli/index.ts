@@ -15,9 +15,10 @@ import type { ServiceInstance } from '../types/index.js';
 import { ServiceStatus, ServiceName } from '../types/index.js';
 import { ProcessManager } from '../modules/ProcessManager.js';
 import { ProcessMonitor, ProcessStatus } from '../modules/ProcessMonitor.js';
-import { LogManager } from '../modules/LogManager.js';
+import { LogManager, LogFilter } from '../modules/LogManager.js';
 import { Logger, setDefaultLogger } from '../modules/Logger.js';
 import { ConfigInitializer } from '../modules/ConfigInitializer.js';
+import { UnifiedLogLevel, LogServiceName } from '../modules/LogParser.js';
 import { PM2Runtime } from '../modules/PM2Runtime.js';
 import { SERVICE_START_ORDER, getServiceDefinitions } from '../config/services.js';
 import { existsSync } from 'fs';
@@ -57,9 +58,14 @@ class LogServiceAdapter implements ILogService {
     follow?: boolean;
     level?: string;
   }): Promise<string[]> {
-    const filter: { service: ServiceName | 'launcher'; lines?: number; level?: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' } = { service };
+    const filter: LogFilter = { service: service as LogServiceName };
     if (options?.lines) filter.lines = options.lines;
-    if (options?.level) filter.level = options.level.toUpperCase() as 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
+    if (options?.level) {
+      const levelUpper = options.level.toUpperCase();
+      if (Object.values(UnifiedLogLevel).includes(levelUpper as UnifiedLogLevel)) {
+        filter.level = levelUpper as UnifiedLogLevel;
+      }
+    }
 
     try {
       const entries = this.logManager.readLogs(filter);
@@ -70,13 +76,13 @@ class LogServiceAdapter implements ILogService {
   }
 
   watchLogs(service: ServiceName | 'launcher', callback: (line: string) => void): () => void {
-    return this.logManager.follow(service, (entry) => {
+    return this.logManager.follow(service as LogServiceName, (entry) => {
       callback(entry.raw);
     });
   }
 
   async clearLogs(service: ServiceName | 'launcher'): Promise<void> {
-    const logFile = this.logManager.getLogFilePath(service);
+    const logFile = this.logManager.getLogFilePath(service as LogServiceName);
     try {
       if (fs.existsSync(logFile)) {
         fs.writeFileSync(logFile, '');

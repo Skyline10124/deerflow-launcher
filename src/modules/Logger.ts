@@ -17,32 +17,17 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import chalk from 'chalk';
+import { formatTimestamp } from './LogParser.js';
 
-/**
- * 获取默认日志目录
- * Get default log directory
- * 
- * 日志目录在当前工作目录下的 logs 文件夹
- * Log directory is the logs folder under current working directory
- */
 function getDefaultLogDir(): string {
   return path.join(process.cwd(), 'logs');
 }
 
-/**
- * 日志级别枚举
- * Log Level Enum
- */
 export enum LogLevel {
-  /** 调试级别 / Debug level */
   DEBUG = 0,
-  /** 信息级别 / Info level */
   INFO = 1,
-  /** 警告级别 / Warning level */
   WARN = 2,
-  /** 错误级别 / Error level */
   ERROR = 3,
-  /** 静默 (不输出) / Silent (no output) */
   SILENT = 4
 }
 
@@ -165,26 +150,8 @@ export class Logger {
     }
   }
 
-  /**
-   * 格式化时间戳
-   * Format timestamp
-   * 
-   * @returns ISO 格式时间戳 / ISO format timestamp
-   */
-  private formatTimestamp(): string {
-    return new Date().toISOString();
-  }
-
-  /**
-   * 格式化日志消息
-   * Format log message
-   * 
-   * @param level - 日志级别 / Log level
-   * @param message - 日志消息 / Log message
-   * @returns 格式化后的消息 / Formatted message
-   */
   private formatMessage(level: string, message: string): string {
-    const timestamp = this.formatTimestamp();
+    const timestamp = formatTimestamp(new Date());
     return `[${timestamp}] [${level}] [${this.module}] ${message}`;
   }
 
