@@ -5,7 +5,7 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)，
 本项目遵循 [语义化版本](https://semver.org/spec/v2.0.0.html)。
 
-## \[0.4.4-alpha] - 2026-04-03
+## \[0.4.4-alpha] - 2026-04-04
 
 ### 新增
 
@@ -25,6 +25,11 @@
   - `service clean` - 停止所有进程并终止 PM2 守护进程
   - `service clean --logs` - 同时清理日志文件
   - `service clean --all` - 完全清理（包括实例目录）
+- **统一日志解析器** (`LogParser.ts`)
+  - `UnifiedLogEntry` 统一日志结构，支持 TUI 显示和文件存储
+  - 服务特定解析器：`LauncherParser`、`LangGraphParser`、`GatewayParser`、`FrontendParser`、`NginxParser`
+  - `LogParserRegistry` 解析器注册表，自动选择正确的解析器
+  - 工具函数：`formatTimestamp()`、`formatDisplayTime()`、`normalizeLevel()`
 
 ### 变更
 
@@ -35,10 +40,24 @@
   - 新增 `Theme`、`NavigationState`、`DashboardState`、`LogService` 接口
   - `Service` 接口增加 `id`、`description`、`pid`、`cpu`、`memory`、`uptime` 字段
   - `LogLevel` 改为枚举类型
+- **日志模块重构**：消除重复代码，统一日志处理
+  - `Logger.ts` 使用 `LogParser.formatTimestamp()` 替代本地实现
+  - `LogManager.ts` 移除 `LogEntry` 接口和 `parseLine()` 方法，使用 `UnifiedLogEntry` 和 `logParserRegistry`
+  - 统一日志级别类型：`UnifiedLogLevel` (字符串枚举) 用于显示，`LogLevel` (数字枚举) 用于级别比较
+- **TUI 性能优化**：解决输入卡顿问题
+  - `useLogStream` 添加批量更新和 100ms 节流，减少 90%+ 渲染次数
+  - `LogPanel` 和 `LogLine` 添加 `React.memo`，避免不必要的重渲染
+  - 合并 `useInput` 注册到单一入口，减少回调遍历
+  - 拆分 `LauncherContext` 为 `LauncherContext` (稳定) + `InstanceContext` (变化)，隔离重渲染范围
+- **代码质量改进**：移除硬编码，集中管理常量
+  - 新增常量：`MIN_WIDTH_FOR_HORIZONTAL`、`LEVEL_FILTERS`、`SERVICE_NAMES`
+  - 所有组件从 `constants.ts` 导入常量，便于维护和修改
 
 ### 移除
 
 - `demo` 命令：移除 `deerflow-launcher demo` 测试命令
+- `LogManager.LogEntry` 接口：被 `LogParser.UnifiedLogEntry` 替代
+- `LogManager.parseLine()` 方法：被 `logParserRegistry.parse()` 替代
 
 ## \[0.4.3-alpha] - 2026-04-03
 

@@ -1,7 +1,7 @@
-import React, { useMemo } from 'react';
-import { Box, Text, useInput } from 'ink';
+import React, { useMemo, memo } from 'react';
+import { Box, Text } from 'ink';
 import { LogEntry, LogLevel, LogService } from '../types/index.js';
-import { LOG_SERVICES, LOG_LEVEL_COLORS, THEME } from '../constants.js';
+import { LOG_SERVICES, LOG_LEVEL_COLORS, THEME, LEVEL_FILTERS } from '../constants.js';
 import { formatTimestamp, formatLogLevel } from '../utils/format.js';
 
 interface LogPanelProps {
@@ -9,21 +9,15 @@ interface LogPanelProps {
   activeTabIndex: number;
   levelFilter: LogLevel | 'all';
   isFocused: boolean;
-  onTabChange: (index: number) => void;
-  onLevelFilterChange: (level: LogLevel | 'all') => void;
   height?: number;
   maxEntries?: number;
 }
 
-const LEVEL_FILTERS: Array<LogLevel | 'all'> = ['all', LogLevel.INFO, LogLevel.WARN, LogLevel.ERROR];
-
-export const LogPanel: React.FC<LogPanelProps> = ({
+export const LogPanel: React.FC<LogPanelProps> = memo(({
   logs,
   activeTabIndex,
   levelFilter,
   isFocused,
-  onTabChange,
-  onLevelFilterChange,
   height = 10,
   maxEntries = 100,
 }) => {
@@ -40,29 +34,7 @@ export const LogPanel: React.FC<LogPanelProps> = ({
     return result.slice(-maxEntries);
   }, [logs, activeService, levelFilter, maxEntries]);
 
-  const visibleLogs = filteredLogs.slice(-height);
-
-  useInput((input, key) => {
-    if (!isFocused) return;
-
-    if (key.tab) {
-      const nextIndex = key.shift
-        ? (activeTabIndex - 1 + LOG_SERVICES.length) % LOG_SERVICES.length
-        : (activeTabIndex + 1) % LOG_SERVICES.length;
-      onTabChange(nextIndex);
-    }
-
-    const num = parseInt(input);
-    if (num >= 1 && num <= LOG_SERVICES.length) {
-      onTabChange(num - 1);
-    }
-
-    if (input === 'f') {
-      const currentIndex = LEVEL_FILTERS.indexOf(levelFilter);
-      const nextIndex = (currentIndex + 1) % LEVEL_FILTERS.length;
-      onLevelFilterChange(LEVEL_FILTERS[nextIndex]);
-    }
-  });
+  const visibleLogs = filteredLogs.slice(-(height - 4));
 
   return (
     <Box
@@ -109,16 +81,18 @@ export const LogPanel: React.FC<LogPanelProps> = ({
         {visibleLogs.length === 0 ? (
           <Text color={THEME.colors.textMuted}>No logs to display</Text>
         ) : (
-          visibleLogs.slice(0, height - 4).map(log => (
+          visibleLogs.map(log => (
             <LogLine key={log.id} entry={log} />
           ))
         )}
       </Box>
     </Box>
   );
-};
+});
 
-const LogLine: React.FC<{ entry: LogEntry }> = ({ entry }) => {
+LogPanel.displayName = 'LogPanel';
+
+const LogLine: React.FC<{ entry: LogEntry }> = memo(({ entry }) => {
   const time = formatTimestamp(entry.timestamp);
   const levelColor = LOG_LEVEL_COLORS[entry.level] || THEME.colors.textMuted;
 
@@ -133,4 +107,6 @@ const LogLine: React.FC<{ entry: LogEntry }> = ({ entry }) => {
       <Text color={THEME.colors.textSecondary} wrap="wrap">{entry.message}</Text>
     </Box>
   );
-};
+});
+
+LogLine.displayName = 'LogLine';

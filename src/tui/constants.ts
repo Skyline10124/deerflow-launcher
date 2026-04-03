@@ -1,4 +1,7 @@
 import { ServiceStatus, LogLevel, Service, LogService, Theme } from './types/index.js';
+import { ServiceName } from '../types/index.js';
+
+export const MIN_WIDTH_FOR_HORIZONTAL = 130;
 
 export const STATUS_COLORS: Record<ServiceStatus, string> = {
   [ServiceStatus.ONLINE]: '#3fb950',
@@ -100,3 +103,12 @@ export const STATUS_ICONS = {
 } as const;
 
 export const MAX_LOG_ENTRIES = 100;
+
+export const LEVEL_FILTERS: Array<LogLevel | 'all'> = ['all', LogLevel.INFO, LogLevel.WARN, LogLevel.ERROR];
+
+export const SERVICE_NAMES: ServiceName[] = [
+  ServiceName.LANGGRAPH,
+  ServiceName.GATEWAY,
+  ServiceName.FRONTEND,
+  ServiceName.NGINX,
+];

@@ -24,5 +24,4 @@ export {
   SERVICE_COLORS,
   formatTimestamp,
   formatDisplayTime,
-  normalizeLevel,
 } from './LogParser.js';

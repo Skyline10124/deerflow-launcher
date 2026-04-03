@@ -77,7 +77,7 @@ export function formatTimestamp(date: Date): string {
   return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
 }
 
-export function normalizeLevel(level: string): UnifiedLogLevel {
+function normalizeLevel(level: string): UnifiedLogLevel {
   const upper = level.toUpperCase();
   const levelMap: Record<string, UnifiedLogLevel> = {
     DEBUG: UnifiedLogLevel.DEBUG,

@@ -6,14 +6,21 @@ import { useLogStream, useTerminalSize } from '../hooks/index.js';
 import { Service, ServiceStatus, LogEntry, LogLevel, NavigationState } from '../types/index.js';
 import { ServiceName } from '../../types/index.js';
 import { ProcessStatus } from '../../modules/ProcessMonitor.js';
-import { DEFAULT_SERVICES, SERVICE_PORTS, SERVICE_DESCRIPTIONS, THEME } from '../constants.js';
+import { 
+  DEFAULT_SERVICES, 
+  SERVICE_PORTS, 
+  SERVICE_DESCRIPTIONS, 
+  THEME,
+  MIN_WIDTH_FOR_HORIZONTAL,
+  LEVEL_FILTERS,
+  SERVICE_NAMES,
+  LOG_SERVICES,
+} from '../constants.js';
 import { formatUptime } from '../utils/format.js';
 import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 
 const execAsync = promisify(exec);
-
-const MIN_WIDTH_FOR_HORIZONTAL = 130;
 
 async function getPM2Version(): Promise<string> {
   try {
@@ -29,8 +36,6 @@ interface DashboardScreenProps {
 }
 
 type LayoutMode = 'horizontal' | 'vertical';
-
-const SERVICE_NAMES: ServiceName[] = [ServiceName.LANGGRAPH, ServiceName.GATEWAY, ServiceName.FRONTEND, ServiceName.NGINX];
 
 function mapProcessStatusToServiceStatus(status: ProcessStatus['status']): ServiceStatus {
   switch (status) {
@@ -374,6 +379,29 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
       return;
     }
 
+    if (nav.mode === 'logs') {
+      if (key.tab) {
+        const nextIndex = key.shift
+          ? (nav.selectedLogTabIndex - 1 + LOG_SERVICES.length) % LOG_SERVICES.length
+          : (nav.selectedLogTabIndex + 1) % LOG_SERVICES.length;
+        setNav(prev => ({ ...prev, selectedLogTabIndex: nextIndex }));
+        return;
+      }
+
+      const num = parseInt(input);
+      if (num >= 1 && num <= LOG_SERVICES.length) {
+        setNav(prev => ({ ...prev, selectedLogTabIndex: num - 1 }));
+        return;
+      }
+
+      if (input === 'f') {
+        const currentIndex = LEVEL_FILTERS.indexOf(levelFilter);
+        const nextIndex = (currentIndex + 1) % LEVEL_FILTERS.length;
+        setLevelFilter(LEVEL_FILTERS[nextIndex]);
+        return;
+      }
+    }
+
     if (input === 'q') {
       handleExit();
     } else if (input === ':') {
@@ -443,8 +471,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
               activeTabIndex={nav.selectedLogTabIndex}
               levelFilter={levelFilter}
               isFocused={nav.mode === 'logs'}
-              onTabChange={index => setNav(prev => ({ ...prev, selectedLogTabIndex: index }))}
-              onLevelFilterChange={setLevelFilter}
               height={logHeight}
             />
           </Box>
@@ -474,8 +500,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
               activeTabIndex={nav.selectedLogTabIndex}
               levelFilter={levelFilter}
               isFocused={nav.mode === 'logs'}
-              onTabChange={index => setNav(prev => ({ ...prev, selectedLogTabIndex: index }))}
-              onLevelFilterChange={setLevelFilter}
               height={logHeight}
             />
           </Box>
