@@ -1,48 +1,69 @@
-import React from 'react'
-import { Box, Text } from 'ink'
+import React from 'react';
+import { Box, Text } from 'ink';
+import { Service, ServiceStatus } from '../types/index.js';
+import { THEME } from '../constants.js';
+import { ICONS } from '../utils/icons.js';
 
-export interface StatusBarProps {
-  version: string
-  mode?: 'normal' | 'insert' | 'visual'
-  services: {
-    total: number
-    online: number
-    offline: number
-  }
-  help?: string
+interface StatusBarProps {
+  services: Service[];
+  terminalSize: { width: number; height: number };
+  pm2Version?: string;
+  version: string;
+  mode: 'grid' | 'logs' | 'command';
 }
-
-const MODE_CONFIG = {
-  normal: 'NORMAL',
-  insert: 'INSERT',
-  visual: 'VISUAL',
-} as const
 
 export const StatusBar: React.FC<StatusBarProps> = ({
-  version,
-  mode = 'normal',
   services,
-  help,
+  terminalSize,
+  pm2Version = 'v5.3.0',
+  version,
+  mode,
 }) => {
-  const modeText = MODE_CONFIG[mode]
+  const onlineCount = services.filter(s => s.status === ServiceStatus.ONLINE).length;
 
   return (
-    <Box justifyContent="space-between" width="100%">
-      <Box>
-        <Text inverse bold> DeerFlow Launcher v{version} </Text>
-        <Text> </Text>
-        <Text dimColor>
-          Services:{' '}
-          <Text color="green">{services.online}</Text>
-          <Text>/{services.total}</Text>
-        </Text>
+    <Box
+      justifyContent="space-between"
+      width="100%"
+      borderStyle="single"
+      borderColor={THEME.colors.border}
+      paddingX={1}
+    >
+      <Box gap={2}>
+        <Box>
+          <Text color={THEME.colors.online}>●</Text>
+          <Text color={THEME.colors.textSecondary}> {onlineCount}/{services.length} 运行中</Text>
+        </Box>
+        <Box>
+          <Text color={THEME.colors.textMuted}>{ICONS.TERMINAL} {terminalSize.width}×{terminalSize.height}</Text>
+        </Box>
+        <Box>
+          <Text color={THEME.colors.textMuted}>{ICONS.PM2} PM2 {pm2Version}</Text>
+        </Box>
       </Box>
-      
-      <Box>
-        {help && <Text dimColor>{help}</Text>}
-        <Text> </Text>
-        <Text inverse bold> {modeText} </Text>
+
+      <Box flexGrow={1} />
+
+      <Box gap={2}>
+        <Shortcut keys={['←', '→']} label="导航" />
+        <Shortcut keys={['s']} label="启动/停止" />
+        <Shortcut keys={['r']} label="重启" />
+        <Shortcut keys={['q']} label="退出" />
       </Box>
     </Box>
-  )
-}
+  );
+};
+
+const Shortcut: React.FC<{ keys: string[]; label: string }> = ({ keys, label }) => (
+  <Box>
+    {keys.map((k, i) => (
+      <Box key={i}>
+        <Text backgroundColor={THEME.colors.bgTertiary} color={THEME.colors.textSecondary}>
+          {' '}{k}{' '}
+        </Text>
+        {i < keys.length - 1 && <Text> </Text>}
+      </Box>
+    ))}
+    <Text color={THEME.colors.textMuted}> {label}</Text>
+  </Box>
+);

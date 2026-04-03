@@ -10,7 +10,7 @@ import {
   registerDashboardCommand
 } from './commands/index.js';
 import { CLIError, ErrorCode } from './utils/errors.js';
-import type { IServiceManager, ServiceStatusInfo, ILogService, IConfigService } from '../core/interfaces/IServiceManager.js';
+import type { IServiceManager, ServiceStatusInfo, ILogService, IConfigService, CleanOptions, CleanResult } from '../core/interfaces/IServiceManager.js';
 import type { ServiceInstance } from '../types/index.js';
 import { ServiceStatus, ServiceName } from '../types/index.js';
 import { ProcessManager } from '../modules/ProcessManager.js';
@@ -18,6 +18,7 @@ import { ProcessMonitor, ProcessStatus } from '../modules/ProcessMonitor.js';
 import { LogManager } from '../modules/LogManager.js';
 import { Logger, setDefaultLogger } from '../modules/Logger.js';
 import { ConfigInitializer } from '../modules/ConfigInitializer.js';
+import { PM2Runtime } from '../modules/PM2Runtime.js';
 import { SERVICE_START_ORDER, getServiceDefinitions } from '../config/services.js';
 import { existsSync } from 'fs';
 import { getDeerFlowPath, getDeerFlowPathWithInstanceId, clearCache } from '../utils/env.js';
@@ -380,6 +381,60 @@ class ServiceManagerAdapter implements IServiceManager {
       restartCount: status.restarts,
       port: status.port
     };
+  }
+
+  async clean(options?: CleanOptions): Promise<CleanResult> {
+    const result: CleanResult = {
+      processesStopped: 0,
+      daemonKilled: false,
+      logsCleared: false,
+      instanceRemoved: false
+    };
+
+    try {
+      await this.processManager.connect();
+      const statuses = await this.processMonitor.getStatus();
+      result.processesStopped = statuses.length;
+
+      for (const status of statuses) {
+        try {
+          await this.processManager.stopService(status.name as ServiceName);
+        } catch {
+          // Ignore errors when stopping individual services
+        }
+      }
+    } catch {
+      // PM2 may not be running
+    }
+
+    try {
+      const pm2Runtime = new PM2Runtime({ instanceId: this.instanceId });
+      await pm2Runtime.initialize();
+      await pm2Runtime.killDaemon();
+      result.daemonKilled = true;
+    } catch {
+      // Daemon may already be stopped
+    }
+
+    if (options?.logs || options?.all) {
+      try {
+        await this.logService.clearAllLogs();
+        result.logsCleared = true;
+      } catch {
+        // Ignore log clearing errors
+      }
+    }
+
+    if (options?.all) {
+      try {
+        PM2Runtime.removeInstance(this.instanceId);
+        result.instanceRemoved = true;
+      } catch {
+        // Ignore instance removal errors
+      }
+    }
+
+    return result;
   }
 }
 

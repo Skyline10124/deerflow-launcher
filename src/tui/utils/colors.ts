@@ -1,19 +1,9 @@
-export const STATUS_COLORS = {
-  ONLINE: 'green',
-  OFFLINE: 'gray',
-  STARTING: 'yellow',
-  STOPPING: 'orange',
-  ERROR: 'red',
-  
-  DEBUG: 'gray',
-  INFO: 'white',
-  WARN: 'yellow',
-  ERROR_LOG: 'red',
-  
-  PRIMARY: 'cyan',
-  SECONDARY: 'gray',
-  BORDER: 'gray',
-  HIGHLIGHT: 'cyan',
-} as const
+import { THEME, STATUS_COLORS, LOG_LEVEL_COLORS } from '../constants.js';
 
-export type StatusColor = typeof STATUS_COLORS[keyof typeof STATUS_COLORS]
+export const Colors = {
+  ...THEME.colors,
+  status: STATUS_COLORS,
+  logLevel: LOG_LEVEL_COLORS,
+};
+
+export { STATUS_COLORS, LOG_LEVEL_COLORS, THEME };

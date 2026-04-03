@@ -7,33 +7,82 @@ export enum ServiceStatus {
 }
 
 export enum LogLevel {
-  DEBUG = 'debug',
   INFO = 'info',
   WARN = 'warn',
   ERROR = 'error',
+  SUCCESS = 'success',
+  DEBUG = 'debug',
 }
 
-export interface ServiceInfo {
-  name: string
-  status: ServiceStatus
-  port: number
-  pid?: number
-  uptime?: string
-  cpu?: number
-  memory?: number
+export interface Service {
+  id: string;
+  name: string;
+  port: number;
+  description: string;
+  status: ServiceStatus;
+  uptime?: string;
+  pid?: number;
+  cpu?: number;
+  memory?: number;
 }
 
 export interface LogEntry {
-  timestamp: string
-  service: string
-  level: LogLevel
-  message: string
-  raw?: string
+  id: string;
+  serviceId: string;
+  timestamp: Date;
+  level: LogLevel;
+  message: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface Theme {
+  colors: {
+    online: string;
+    offline: string;
+    starting: string;
+    stopping: string;
+    error: string;
+    primary: string;
+    accent: string;
+    info: string;
+    bgPrimary: string;
+    bgSecondary: string;
+    bgTertiary: string;
+    bgHover: string;
+    textPrimary: string;
+    textSecondary: string;
+    textMuted: string;
+    border: string;
+    borderActive: string;
+  };
+}
+
+export interface NavigationState {
+  mode: 'grid' | 'logs' | 'command';
+  selectedServiceIndex: number;
+  selectedLogTabIndex: number;
+  commandHistory: string[];
+  commandHistoryIndex: number;
+}
+
+export interface DashboardState {
+  services: Service[];
+  logs: LogEntry[];
+  maxLogEntries: number;
+  isLoading: boolean;
+  error: string | null;
+  navigation: NavigationState;
 }
 
 export interface TerminalSize {
-  width: number
-  height: number
+  width: number;
+  height: number;
 }
 
-export type ServiceName = 'langgraph' | 'gateway' | 'frontend' | 'nginx'
+export type ServiceName = 'langgraph' | 'gateway' | 'frontend' | 'nginx';
+
+export interface LogService {
+  id: string;
+  name: string;
+  color: string;
+}

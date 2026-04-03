@@ -1,121 +1,119 @@
-import React from 'react'
-import { Box, Text } from 'ink'
-import Spinner from 'ink-spinner'
-import { ServiceStatus } from '../types/index.js'
-import { STATUS_COLORS } from '../utils/colors.js'
-import { STATUS_ICONS } from '../utils/icons.js'
-import { formatMemory } from '../utils/format.js'
+import React from 'react';
+import { Box, Text } from 'ink';
+import Spinner from 'ink-spinner';
+import { Service, ServiceStatus } from '../types/index.js';
+import { STATUS_COLORS, THEME } from '../constants.js';
+import { getStatusIcon } from '../utils/icons.js';
+import { formatMemory } from '../utils/format.js';
 
-export interface ServiceCardProps {
-  name: string
-  status: ServiceStatus
-  port: number
-  pid?: number
-  uptime?: string
-  cpu?: number
-  memory?: number
-  selected?: boolean
+interface ServiceCardProps {
+  service: Service;
+  isActive: boolean;
+  isFocused: boolean;
+  onSelect?: () => void;
+  onStart?: () => void;
+  onStop?: () => void;
+  onRestart?: () => void;
 }
 
 const STATUS_CONFIG = {
   [ServiceStatus.ONLINE]: {
-    icon: STATUS_ICONS.ONLINE,
-    color: STATUS_COLORS.ONLINE,
+    icon: '●',
+    color: STATUS_COLORS[ServiceStatus.ONLINE],
     text: 'Running',
+    showSpinner: false,
   },
   [ServiceStatus.OFFLINE]: {
-    icon: STATUS_ICONS.OFFLINE,
-    color: STATUS_COLORS.OFFLINE,
+    icon: '○',
+    color: STATUS_COLORS[ServiceStatus.OFFLINE],
     text: 'Stopped',
+    showSpinner: false,
   },
   [ServiceStatus.STARTING]: {
-    icon: STATUS_ICONS.STARTING,
-    color: STATUS_COLORS.STARTING,
+    icon: '◐',
+    color: STATUS_COLORS[ServiceStatus.STARTING],
     text: 'Starting...',
+    showSpinner: true,
   },
   [ServiceStatus.STOPPING]: {
-    icon: STATUS_ICONS.STOPPING,
-    color: STATUS_COLORS.STOPPING,
+    icon: '◑',
+    color: STATUS_COLORS[ServiceStatus.STOPPING],
     text: 'Stopping...',
+    showSpinner: true,
   },
   [ServiceStatus.ERROR]: {
-    icon: STATUS_ICONS.ERROR,
-    color: STATUS_COLORS.ERROR,
+    icon: '✗',
+    color: STATUS_COLORS[ServiceStatus.ERROR],
     text: 'Error',
+    showSpinner: false,
   },
-} as const
+} as const;
 
 export const ServiceCard: React.FC<ServiceCardProps> = ({
-  name,
-  status,
-  port,
-  pid,
-  uptime,
-  cpu,
-  memory,
-  selected = false,
+  service,
+  isActive,
+  isFocused,
 }) => {
-  const config = STATUS_CONFIG[status]
-  const isTransitioning = status === ServiceStatus.STARTING || 
-                          status === ServiceStatus.STOPPING
+  const config = STATUS_CONFIG[service.status];
+  const borderColor = isActive ? THEME.colors.borderActive : THEME.colors.border;
 
   return (
     <Box
       flexDirection="column"
-      borderStyle="round"
-      borderColor={selected ? STATUS_COLORS.HIGHLIGHT : config.color}
-      paddingX={1}
-      width={20}
+      borderStyle={isActive ? 'double' : 'round'}
+      borderColor={borderColor}
+      paddingX={2}
+      paddingY={1}
+      width="100%"
     >
-      <Box>
-        <Text bold color={selected ? STATUS_COLORS.HIGHLIGHT : 'white'}>
-          {name}
-        </Text>
-      </Box>
-
-      <Box>
-        {isTransitioning ? (
-          <>
-            <Text color={config.color}>
-              <Spinner type="dots" />
-            </Text>
-            <Text color={config.color}> {config.text}</Text>
-          </>
-        ) : (
+      <Box justifyContent="space-between">
+        <Box>
           <Text color={config.color}>
-            {config.icon} {config.text}
+            {config.showSpinner ? (
+              <Spinner type="dots" />
+            ) : (
+              config.icon
+            )}
           </Text>
-        )}
+          <Text> </Text>
+          <Text bold color={isActive ? THEME.colors.primary : THEME.colors.textPrimary}>
+            {service.name}
+          </Text>
+        </Box>
+        <Text color={THEME.colors.textMuted}>:{service.port}</Text>
       </Box>
 
       <Box>
-        <Text dimColor>Port: </Text>
-        <Text>{port}</Text>
+        <Text color={THEME.colors.textSecondary}>{service.description}</Text>
       </Box>
 
-      {pid && (
+      {service.status === ServiceStatus.ONLINE && (
         <Box>
-          <Text dimColor>PID: </Text>
-          <Text>{pid}</Text>
+          <Text color={THEME.colors.textMuted}>运行时长: </Text>
+          <Text color={THEME.colors.textSecondary}>{service.uptime || '-'}</Text>
         </Box>
       )}
 
-      {uptime && status === ServiceStatus.ONLINE && (
-        <Box>
-          <Text dimColor>Uptime: </Text>
-          <Text>{uptime}</Text>
-        </Box>
-      )}
-
-      {status === ServiceStatus.ONLINE && (cpu !== undefined || memory !== undefined) && (
-        <Box>
-          <Text dimColor>
-            {cpu !== undefined && `CPU: ${cpu}%`}
-            {cpu !== undefined && memory !== undefined && ' | '}
-            {memory !== undefined && `Mem: ${formatMemory(memory)}`}
-          </Text>
+      {service.pid && (
+        <Box gap={2}>
+          <Box>
+            <Text color={THEME.colors.textMuted}>PID: </Text>
+            <Text color={THEME.colors.textSecondary}>{service.pid}</Text>
+          </Box>
+          {service.cpu !== undefined && (
+            <Box>
+              <Text color={THEME.colors.textMuted}>CPU: </Text>
+              <Text color={THEME.colors.textSecondary}>{service.cpu}%</Text>
+            </Box>
+          )}
+          {service.memory !== undefined && (
+            <Box>
+              <Text color={THEME.colors.textMuted}>Mem: </Text>
+              <Text color={THEME.colors.textSecondary}>{formatMemory(service.memory)}</Text>
+            </Box>
+          )}
         </Box>
       )}
     </Box>
-  )
-}
+  );
+};

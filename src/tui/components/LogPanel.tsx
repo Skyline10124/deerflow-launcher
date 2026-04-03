@@ -1,75 +1,136 @@
-import React, { useMemo } from 'react'
-import { Box, Text } from 'ink'
-import { LogEntry, LogLevel } from '../types/index.js'
-import { STATUS_COLORS } from '../utils/colors.js'
+import React, { useMemo } from 'react';
+import { Box, Text, useInput } from 'ink';
+import { LogEntry, LogLevel, LogService } from '../types/index.js';
+import { LOG_SERVICES, LOG_LEVEL_COLORS, THEME } from '../constants.js';
+import { formatTimestamp, formatLogLevel } from '../utils/format.js';
 
-export interface LogPanelProps {
-  logs: LogEntry[]
-  height?: number
-  showService?: boolean
-  filter?: {
-    service?: string
-    level?: LogLevel[]
-  }
+interface LogPanelProps {
+  logs: LogEntry[];
+  activeTabIndex: number;
+  levelFilter: LogLevel | 'all';
+  isFocused: boolean;
+  onTabChange: (index: number) => void;
+  onLevelFilterChange: (level: LogLevel | 'all') => void;
+  height?: number;
+  maxEntries?: number;
 }
 
-const LEVEL_CONFIG = {
-  [LogLevel.DEBUG]: { color: STATUS_COLORS.DEBUG, label: 'DEBUG' },
-  [LogLevel.INFO]: { color: STATUS_COLORS.INFO, label: 'INFO ' },
-  [LogLevel.WARN]: { color: STATUS_COLORS.WARN, label: 'WARN ' },
-  [LogLevel.ERROR]: { color: STATUS_COLORS.ERROR_LOG, label: 'ERROR' },
-} as const
+const LEVEL_FILTERS: Array<LogLevel | 'all'> = ['all', LogLevel.INFO, LogLevel.WARN, LogLevel.ERROR];
 
 export const LogPanel: React.FC<LogPanelProps> = ({
   logs,
+  activeTabIndex,
+  levelFilter,
+  isFocused,
+  onTabChange,
+  onLevelFilterChange,
   height = 10,
-  showService = true,
-  filter,
+  maxEntries = 100,
 }) => {
-  const filteredLogs = useMemo(() => {
-    let result = logs
-    if (filter?.service) {
-      result = result.filter(log => log.service === filter.service)
-    }
-    if (filter?.level) {
-      result = result.filter(log => filter.level!.includes(log.level))
-    }
-    return result
-  }, [logs, filter])
+  const activeService = LOG_SERVICES[activeTabIndex];
 
-  const visibleLogs = filteredLogs.slice(-height)
+  const filteredLogs = useMemo(() => {
+    let result = logs;
+    if (activeService && activeService.id !== 'launcher') {
+      result = result.filter(log => log.serviceId === activeService.id);
+    }
+    if (levelFilter !== 'all') {
+      result = result.filter(log => log.level === levelFilter);
+    }
+    return result.slice(-maxEntries);
+  }, [logs, activeService, levelFilter, maxEntries]);
+
+  const visibleLogs = filteredLogs.slice(-height);
+
+  useInput((input, key) => {
+    if (!isFocused) return;
+
+    if (key.tab) {
+      const nextIndex = key.shift
+        ? (activeTabIndex - 1 + LOG_SERVICES.length) % LOG_SERVICES.length
+        : (activeTabIndex + 1) % LOG_SERVICES.length;
+      onTabChange(nextIndex);
+    }
+
+    const num = parseInt(input);
+    if (num >= 1 && num <= LOG_SERVICES.length) {
+      onTabChange(num - 1);
+    }
+
+    if (input === 'f') {
+      const currentIndex = LEVEL_FILTERS.indexOf(levelFilter);
+      const nextIndex = (currentIndex + 1) % LEVEL_FILTERS.length;
+      onLevelFilterChange(LEVEL_FILTERS[nextIndex]);
+    }
+  });
 
   return (
-    <Box 
-      flexDirection="column" 
-      borderStyle="single" 
-      borderColor={STATUS_COLORS.BORDER} 
-      paddingX={1}
+    <Box
+      flexDirection="column"
+      borderStyle="round"
+      borderColor={THEME.colors.border}
+      height="100%"
     >
-      <Box marginBottom={1}>
-        <Text bold inverse> Logs </Text>
-        {filter?.service && (
-          <Text dimColor> [{filter.service}]</Text>
+      <Box paddingX={1} justifyContent="space-between">
+        <Box>
+          <Text>📋 实时日志</Text>
+        </Box>
+        <Box gap={1}>
+          {LEVEL_FILTERS.map(level => (
+            <Text
+              key={level}
+              color={levelFilter === level ? THEME.colors.primary : THEME.colors.textMuted}
+              bold={levelFilter === level}
+            >
+              [{level.toUpperCase()}]
+            </Text>
+          ))}
+        </Box>
+      </Box>
+
+      <Box borderBottom borderColor={THEME.colors.border}>
+        {LOG_SERVICES.map((svc, index) => (
+          <Box
+            key={svc.id}
+            paddingX={2}
+          >
+            <Text
+              color={activeTabIndex === index ? svc.color : THEME.colors.textMuted}
+              bold={activeTabIndex === index}
+              underline={activeTabIndex === index}
+            >
+              ● {svc.name}
+            </Text>
+          </Box>
+        ))}
+      </Box>
+
+      <Box flexDirection="column" flexGrow={1} paddingX={1}>
+        {visibleLogs.length === 0 ? (
+          <Text color={THEME.colors.textMuted}>No logs to display</Text>
+        ) : (
+          visibleLogs.map(log => (
+            <LogLine key={log.id} entry={log} />
+          ))
         )}
       </Box>
-      
-      {visibleLogs.length === 0 ? (
-        <Text dimColor>No logs to display</Text>
-      ) : (
-        visibleLogs.map((log, index) => {
-          const levelConfig = LEVEL_CONFIG[log.level]
-          return (
-            <Box key={index}>
-              <Text dimColor>[{log.timestamp}]</Text>
-              {showService && (
-                <Text color="cyan">[{log.service}]</Text>
-              )}
-              <Text color={levelConfig.color}> {levelConfig.label} </Text>
-              <Text>{log.message}</Text>
-            </Box>
-          )
-        })
-      )}
     </Box>
-  )
-}
+  );
+};
+
+const LogLine: React.FC<{ entry: LogEntry }> = ({ entry }) => {
+  const time = formatTimestamp(entry.timestamp);
+  const levelColor = LOG_LEVEL_COLORS[entry.level] || THEME.colors.textMuted;
+
+  return (
+    <Box>
+      <Text color={THEME.colors.textMuted}>{time}</Text>
+      <Text> </Text>
+      <Text color={levelColor} bold>
+        {formatLogLevel(entry.level).padStart(5)}
+      </Text>
+      <Text> </Text>
+      <Text color={THEME.colors.textSecondary}>{entry.message}</Text>
+    </Box>
+  );
+};

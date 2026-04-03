@@ -256,6 +256,62 @@ export function registerRestartCommand(
     });
 }
 
+export function registerCleanCommand(
+  program: Command,
+  services: IServiceManager
+): void {
+  program
+    .command('clean')
+    .description('Clean PM2 processes and optionally logs')
+    .option('-l, --logs', 'Also clear log files', false)
+    .option('-a, --all', 'Clean everything including instance directory', false)
+    .action(async (options) => {
+      const confirmed = await confirmDestructive('CLEAN PM2 PROCESSES' + (options.all ? ' AND INSTANCE DIRECTORY' : options.logs ? ' AND LOGS' : ''));
+      if (!confirmed) {
+        console.log(chalk.gray('Operation cancelled'));
+        return;
+      }
+
+      const spinner = ora({
+        text: 'Cleaning PM2 processes...',
+        spinner: 'dots'
+      }).start();
+
+      try {
+        const result = await services.clean({
+          logs: options.logs || options.all,
+          all: options.all
+        });
+
+        spinner.succeed(chalk.green('PM2 cleanup completed'));
+
+        console.log();
+        console.log(chalk.gray('  Processes stopped:'), result.processesStopped);
+        console.log(chalk.gray('  Daemon killed:'), result.daemonKilled ? chalk.green('Yes') : chalk.yellow('No'));
+        
+        if (options.logs || options.all) {
+          console.log(chalk.gray('  Logs cleared:'), result.logsCleared ? chalk.green('Yes') : chalk.yellow('No'));
+        }
+        
+        if (options.all) {
+          console.log(chalk.gray('  Instance removed:'), result.instanceRemoved ? chalk.green('Yes') : chalk.yellow('No'));
+        }
+
+        console.log();
+        console.log(chalk.gray('Use "deerflow service start" to restart services'));
+
+      } catch (error) {
+        spinner.fail();
+        
+        throw new CLIError(
+          ErrorCode.SERVICE_STOP_FAILED,
+          `Failed to clean PM2: ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error instanceof Error ? error : undefined }
+        );
+      }
+    });
+}
+
 export function registerServiceCommands(
   program: Command,
   services: IServiceManager
@@ -269,4 +325,5 @@ export function registerServiceCommands(
   registerStopCommand(serviceCmd, services);
   registerStatusCommand(serviceCmd, services);
   registerRestartCommand(serviceCmd, services);
+  registerCleanCommand(serviceCmd, services);
 }

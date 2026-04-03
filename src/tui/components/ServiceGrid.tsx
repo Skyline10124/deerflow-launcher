@@ -1,39 +1,71 @@
-import React from 'react'
-import { Box } from 'ink'
-import { ServiceCard, ServiceCardProps } from './ServiceCard.js'
+import React from 'react';
+import { Box, useInput } from 'ink';
+import { ServiceCard } from './ServiceCard.js';
+import { Service } from '../types/index.js';
 
-export interface ServiceGridProps {
-  services: ServiceCardProps[]
-  selectedIndex?: number
-  columns?: number
+interface ServiceGridProps {
+  services: Service[];
+  selectedIndex: number;
+  isFocused: boolean;
+  onNavigate: (direction: 'up' | 'down' | 'left' | 'right') => void;
+  onServiceAction: (serviceId: string, action: 'start' | 'stop' | 'restart') => void;
 }
 
 export const ServiceGrid: React.FC<ServiceGridProps> = ({
   services,
-  selectedIndex = 0,
-  columns = 4,
+  selectedIndex,
+  isFocused,
+  onNavigate,
+  onServiceAction,
 }) => {
-  const rows: ServiceCardProps[][] = []
-  for (let i = 0; i < services.length; i += columns) {
-    rows.push(services.slice(i, i + columns))
-  }
+  useInput((input, key) => {
+    if (!isFocused) return;
+
+    if (key.upArrow) onNavigate('up');
+    if (key.downArrow) onNavigate('down');
+    if (key.leftArrow) onNavigate('left');
+    if (key.rightArrow) onNavigate('right');
+
+    if (input === 's') {
+      const service = services[selectedIndex];
+      if (service) {
+        const action = service.status === 'online' ? 'stop' : 'start';
+        onServiceAction(service.id, action);
+      }
+    }
+    if (input === 'r') {
+      const service = services[selectedIndex];
+      if (service) {
+        onServiceAction(service.id, 'restart');
+      }
+    }
+  });
+
+  const row1 = services.slice(0, 2);
+  const row2 = services.slice(2, 4);
 
   return (
     <Box flexDirection="column" gap={1}>
-      {rows.map((row, rowIndex) => (
-        <Box key={rowIndex} gap={1}>
-          {row.map((service, colIndex) => {
-            const globalIndex = rowIndex * columns + colIndex
-            return (
-              <ServiceCard
-                key={service.name}
-                {...service}
-                selected={globalIndex === selectedIndex}
-              />
-            )
-          })}
-        </Box>
-      ))}
+      <Box gap={1}>
+        {row1.map((service, index) => (
+          <ServiceCard
+            key={service.id}
+            service={service}
+            isActive={selectedIndex === index}
+            isFocused={isFocused}
+          />
+        ))}
+      </Box>
+      <Box gap={1}>
+        {row2.map((service, index) => (
+          <ServiceCard
+            key={service.id}
+            service={service}
+            isActive={selectedIndex === index + 2}
+            isFocused={isFocused}
+          />
+        ))}
+      </Box>
     </Box>
-  )
-}
+  );
+};

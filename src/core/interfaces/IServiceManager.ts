@@ -48,6 +48,18 @@ export interface IConfigService {
   init(): Promise<void>;
 }
 
+export interface CleanOptions {
+  logs?: boolean;
+  all?: boolean;
+}
+
+export interface CleanResult {
+  processesStopped: number;
+  daemonKilled: boolean;
+  logsCleared: boolean;
+  instanceRemoved: boolean;
+}
+
 export interface IServiceManager {
   start(options?: StartOptions): Promise<void>;
   stop(options?: StopOptions): Promise<void>;
@@ -56,4 +68,5 @@ export interface IServiceManager {
   getAllStatus(): Promise<ServiceStatusInfo[]>;
   getLogService(): ILogService;
   getConfigService(): IConfigService;
+  clean(options?: CleanOptions): Promise<CleanResult>;
 }

@@ -1,2 +1,1 @@
-export { DashboardScreen } from './DashboardScreen.js'
-export { default as DemoDashboard } from './DemoDashboard.js'
+export { DashboardScreen } from './DashboardScreen.js';

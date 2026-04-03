@@ -9,6 +9,8 @@ DeerFlow Desktop Launcher - 服务管理与启动工具
 - **服务管理**: 使用内置 PM2 管理服务生命周期
 - **健康检查**: 端口轮询检测服务状态
 - **日志管理**: 统一日志输出，支持控制台和文件
+- **多实例管理**: 支持同时运行多个独立实例
+- **TUI Dashboard**: 交互式终端界面，实时监控服务状态
 - **跨平台支持**: Windows/Linux/macOS 兼容
 - **开箱即用**: 打包后无需安装 Node.js 依赖
 
@@ -52,40 +54,228 @@ deerflow-launcher [options] [command]
 deerflow-launcher --help
 
 # 启动服务
-deerflow-launcher start                    # 启动所有服务
-deerflow-launcher start langgraph gateway  # 启动指定服务
-deerflow-launcher start --detach           # 后台启动
+deerflow-launcher service|svc start                    # 启动所有服务
+deerflow-launcher service|svc start langgraph gateway  # 启动指定服务
+deerflow-launcher service|svc start --detach           # 后台启动
 
 # 停止服务
-deerflow-launcher stop                     # 停止所有服务
-deerflow-launcher stop langgraph           # 停止指定服务
-deerflow-launcher stop --force             # 强制停止
+deerflow-launcher service|svc stop                     # 停止所有服务
+deerflow-launcher service|svc stop langgraph           # 停止指定服务
+deerflow-launcher service|svc stop --force             # 强制停止
 
 # 查看状态
-deerflow-launcher status                   # 查看所有服务状态
-deerflow-launcher status langgraph         # 查看指定服务状态
-deerflow-launcher status --json            # JSON 格式输出
+deerflow-launcher service|svc status                   # 查看所有服务状态
+deerflow-launcher service|svc status langgraph         # 查看指定服务状态
+deerflow-launcher service|svc status --json            # JSON 格式输出
 
 # 重启服务
-deerflow-launcher restart                  # 重启所有服务
+deerflow-launcher service|svc restart                  # 重启所有服务
+
+# 清理 PM2 进程
+deerflow-launcher service|svc clean                    # 停止所有进程并终止 PM2 守护进程
+deerflow-launcher service|svc clean --logs             # 同时清理日志文件
+deerflow-launcher service|svc clean --all              # 完全清理（包括实例目录）
 
 # 日志管理
-deerflow-launcher logs                     # 查看所有日志
-deerflow-launcher logs langgraph           # 查看指定服务日志
-deerflow-launcher logs --follow            # 实时跟踪日志
+deerflow-launcher logs                                 # 查看所有日志
+deerflow-launcher logs langgraph                       # 查看指定服务日志
+deerflow-launcher logs --follow                        # 实时跟踪日志
 
 # 环境诊断
-deerflow-launcher doctor                   # 检查环境依赖
+deerflow-launcher doctor                               # 检查环境依赖
 
 # 配置管理
-deerflow-launcher config list              # 列出所有配置
-deerflow-launcher config get <key>         # 获取配置值
-deerflow-launcher config set <key> <value> # 设置配置值
-deerflow-launcher config init              # 初始化配置文件
-deerflow-launcher config validate          # 验证配置
+deerflow-launcher config list                          # 列出所有配置
+deerflow-launcher config get <key>                     # 获取配置值
+deerflow-launcher config set <key> <value>             # 设置配置值
+deerflow-launcher config init                          # 初始化配置文件
+deerflow-launcher config validate                      # 验证配置
 
-# 清理
-deerflow-launcher clean                    # 清理 PM2 实例
+# TUI Dashboard
+deerflow-launcher dashboard|dash                       # 启动交互式终端界面
+```
+
+## TUI Dashboard
+
+Launcher 提供了一个交互式终端界面 (TUI)，用于实时监控和管理服务。
+
+### 启动 Dashboard
+
+```bash
+# 使用当前路径
+deerflow-launcher dashboard
+
+# 使用命名路径
+deerflow-launcher dashboard -p dev
+
+# 禁用进程监控
+deerflow-launcher dashboard --no-monitor
+```
+
+### 界面布局
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  [● 2/4 运行中] [🖥️ 120×30] [⚡ PM2 v5.3.0]    [←→ 导航] [s] [r] [q] │
+├──────────────────────────────────────────────────────────────────┤
+│  Services                                                        │
+│  ┌─────────────────────────┬─────────────────────────┐          │
+│  │ ● LangGraph      :2024  │ ○ Gateway        :8001  │          │
+│  │ AI Workflow Engine      │ FastAPI Proxy           │          │
+│  │ 运行时长: 3d 12h 45m    │                         │          │
+│  │ PID: 1001 | CPU: 5%     │                         │          │
+│  └─────────────────────────┴─────────────────────────┘          │
+│  ┌─────────────────────────┬─────────────────────────┐          │
+│  │ ○ Frontend       :3000  │ ○ Nginx          :2026  │          │
+│  │ React Dashboard         │ Reverse Proxy           │          │
+│  └─────────────────────────┴─────────────────────────┘          │
+├──────────────────────────────────────────────────────────────────┤
+│  📋 实时日志                    [ALL] [INFO] [WARN] [ERROR]      │
+│  ● Launcher  ● LangGraph  ● Gateway  ● Frontend  ● Nginx        │
+│  10:42:18  INFO  [Launcher] 启动序列...                          │
+│  10:42:15  SUCC  [LangGraph] 健康检查通过                        │
+├──────────────────────────────────────────────────────────────────┤
+│  ❯ start langgraph                        按 Enter 执行         │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### 键盘快捷键
+
+| 快捷键 | 功能 |
+|--------|------|
+| `q` | 退出 Dashboard |
+| `:` | 进入命令模式 |
+| `/` | 切换焦点 (服务网格 ↔ 日志面板) |
+| `Tab` | 切换焦点区域 |
+| `←` `→` `↑` `↓` | 导航服务卡片 |
+| `s` | 启动/停止选中服务 |
+| `r` | 重启选中服务 |
+| `1-5` | 快速切换日志标签 |
+| `f` | 切换日志级别过滤 |
+| `Esc` | 退出命令模式 |
+
+### 命令模式
+
+按 `:` 进入命令模式，支持以下命令：
+
+```bash
+:start <service>    # 启动服务
+:stop <service>     # 停止服务
+:restart <service>  # 重启服务
+:q, :quit, :exit    # 退出 Dashboard
+:help               # 显示帮助
+```
+
+### 服务状态图标
+
+| 图标 | 状态 | 颜色 |
+|------|------|------|
+| ● | 在线 (Online) | 绿色 `#3fb950` |
+| ○ | 离线 (Offline) | 灰色 `#6e7681` |
+| ◐ | 启动中 (Starting) | 黄色 `#d29922` |
+| ◑ | 停止中 (Stopping) | 黄色 `#d29922` |
+| ✗ | 错误 (Error) | 红色 `#f85149` |
+
+## 多实例管理
+
+Launcher 支持同时运行多个独立的 DeerFlow 实例，每个实例拥有独立的 PM2 守护进程和服务进程。
+
+### 架构设计
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                      Multi-Instance Architecture                     │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  CLI: deerflow start --use-path dev                                 │
+│       deerflow start --use-path prod                                │
+│                                                                      │
+│            │                        │                               │
+│            ▼                        ▼                               │
+│  ┌─────────────────┐      ┌─────────────────┐                      │
+│  │   Instance:dev   │      │  Instance:prod  │                      │
+│  │   PM2Runtime     │      │   PM2Runtime    │                      │
+│  │   PM2_HOME:      │      │   PM2_HOME:     │                      │
+│  │   ~/.deerflow/   │      │   ~/.deerflow/  │                      │
+│  │   pm2-instances/ │      │   pm2-instances/│                      │
+│  │   dev            │      │   prod          │                      │
+│  └─────────────────┘      └─────────────────┘                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 配置多实例
+
+```bash
+# 添加开发环境路径
+deerflow-launcher config set deerflowPath dev /path/to/deer-flow-dev "Development environment"
+
+# 添加生产环境路径
+deerflow-launcher config set deerflowPath prod /path/to/deer-flow-prod "Production environment"
+
+# 设置默认路径
+deerflow-launcher config set defaultPath dev
+```
+
+### 使用多实例
+
+```bash
+# 启动开发环境
+deerflow-launcher -p dev start
+
+# 启动生产环境
+deerflow-launcher -p prod start
+
+# 查看开发环境状态
+deerflow-launcher -p dev status
+
+# Dashboard 也支持多实例
+deerflow-launcher dashboard -p dev
+deerflow-launcher dashboard -p prod
+```
+
+### 实例隔离
+
+每个实例使用独立的目录：
+
+```
+~/.deerflow/
+├── launcher.json           # 全局配置
+├── pm2-instances/          # PM2 实例目录
+│   ├── default/            # 默认实例
+│   │   ├── pm2.pid
+│   │   ├── logs/
+│   │   ├── rpc.sock
+│   │   └── pub.sock
+│   ├── dev/                # 开发实例
+│   │   └── ...
+│   └── prod/               # 生产实例
+│       └── ...
+```
+
+### 实例状态追踪
+
+实例状态保存在配置文件中：
+
+```json
+{
+  "deerflowPaths": [
+    { "name": "dev", "path": "/path/to/dev", "description": "Development" },
+    { "name": "prod", "path": "/path/to/prod", "description": "Production" }
+  ],
+  "defaultPath": "dev",
+  "instanceStatuses": {
+    "dev": {
+      "running": true,
+      "services": ["langgraph", "gateway"],
+      "lastActive": "2024-01-15T10:30:00Z"
+    },
+    "prod": {
+      "running": false,
+      "services": [],
+      "lastActive": "2024-01-14T18:00:00Z"
+    }
+  }
+}
 ```
 
 ### 设置 DeerFlow 路径
@@ -227,8 +417,23 @@ launcher/
 │   │   │   ├── service/           # 服务管理命令
 │   │   │   ├── logs/              # 日志命令
 │   │   │   ├── doctor/            # 诊断命令
-│   │   │   └── config/            # 配置命令
+│   │   │   ├── config/            # 配置命令
+│   │   │   └── dashboard/         # Dashboard 命令
 │   │   └── components/            # CLI 组件
+│   ├── tui/                       # TUI Dashboard
+│   │   ├── components/            # UI 组件
+│   │   │   ├── ServiceCard.tsx    # 服务卡片
+│   │   │   ├── ServiceGrid.tsx    # 服务网格
+│   │   │   ├── LogPanel.tsx       # 日志面板
+│   │   │   ├── CommandInput.tsx   # 命令输入
+│   │   │   └── StatusBar.tsx      # 状态栏
+│   │   ├── screens/               # 屏幕组件
+│   │   │   └── DashboardScreen.tsx
+│   │   ├── hooks/                 # React Hooks
+│   │   ├── context/               # React Context
+│   │   ├── types/                 # 类型定义
+│   │   ├── utils/                 # 工具函数
+│   │   └── constants.ts           # 常量定义
 │   ├── config/
 │   │   └── services.ts            # 服务定义配置
 │   └── utils/
