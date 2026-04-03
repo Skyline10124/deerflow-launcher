@@ -109,16 +109,24 @@ export interface GetDeerFlowPathOptions {
   usePath?: string;
 }
 
-export function getDeerFlowPath(options?: GetDeerFlowPathOptions): string {
-  if (cachedDeerFlowPath) {
-    return cachedDeerFlowPath;
-  }
+export interface GetDeerFlowPathResult {
+  path: string;
+  instanceId: string;
+}
 
+export function getDeerFlowPath(options?: GetDeerFlowPathOptions): string {
+  const result = getDeerFlowPathWithInstanceId(options);
+  return result.path;
+}
+
+export function getDeerFlowPathWithInstanceId(options?: GetDeerFlowPathOptions): GetDeerFlowPathResult {
   let deerflowPath: string | undefined;
+  let instanceId: string = 'default';
 
   if (options?.cliPath) {
     if (validatePath(options.cliPath)) {
       deerflowPath = options.cliPath;
+      instanceId = 'cli';
       logger.debug(`Using CLI path: ${deerflowPath}`);
     } else {
       logger.warn(`CLI path invalid: ${options.cliPath}`);
@@ -129,6 +137,7 @@ export function getDeerFlowPath(options?: GetDeerFlowPathOptions): string {
     const namedPath = getConfigPath(options.usePath);
     if (namedPath && validatePath(namedPath.path)) {
       deerflowPath = namedPath.path;
+      instanceId = namedPath.name;
       logger.debug(`Using named path "${namedPath.name}": ${deerflowPath}`);
     } else if (namedPath) {
       logger.warn(`Named path "${options.usePath}" is invalid: ${namedPath.path}`);
@@ -141,6 +150,7 @@ export function getDeerFlowPath(options?: GetDeerFlowPathOptions): string {
     const configPath = getDefaultDeerflowPath();
     if (configPath && validatePath(configPath.path)) {
       deerflowPath = configPath.path;
+      instanceId = configPath.name;
       logger.debug(`Using default config path "${configPath.name}": ${deerflowPath}`);
     }
   }
@@ -150,6 +160,7 @@ export function getDeerFlowPath(options?: GetDeerFlowPathOptions): string {
     if (envPath) {
       if (fs.existsSync(envPath)) {
         deerflowPath = envPath;
+        instanceId = 'env';
         logger.debug(`Using DEERFLOW_PATH: ${deerflowPath}`);
       } else {
         logger.warn(`DEERFLOW_PATH points to non-existent path: ${envPath}`);
@@ -159,6 +170,7 @@ export function getDeerFlowPath(options?: GetDeerFlowPathOptions): string {
 
   if (!deerflowPath) {
     deerflowPath = findDeerFlowPath();
+    instanceId = 'auto';
     logger.debug(`Using auto-detected path: ${deerflowPath}`);
   }
 
@@ -169,7 +181,7 @@ export function getDeerFlowPath(options?: GetDeerFlowPathOptions): string {
     cachedEnvVars = parseDotEnvFile(envFile);
   }
 
-  return cachedDeerFlowPath;
+  return { path: deerflowPath, instanceId };
 }
 
 export function loadDotEnv(deerflowPath?: string): Record<string, string> {

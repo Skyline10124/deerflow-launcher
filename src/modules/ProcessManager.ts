@@ -28,7 +28,6 @@ import {
  * 使用 require 导入以兼容 pkg 打包
  * Use require for pkg compatibility
  */
-// Use require for pkg compatibility but bypass ESM static analysis
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const pm2 = require('pm2');
@@ -114,6 +113,8 @@ export class ProcessManager {
   private deerflowPath: string;
   /** 从 .env 文件加载的环境变量 / Environment variables loaded from .env file */
   private dotEnvVars: Record<string, string> = {};
+  /** 实例 ID / Instance ID */
+  private instanceId: string;
 
   /**
    * 创建进程管理器实例
@@ -121,12 +122,14 @@ export class ProcessManager {
    *
    * @param logDir - 日志目录路径 / Log directory path
    * @param deerflowPath - DeerFlow 项目根目录 / DeerFlow project root directory
+   * @param instanceId - 实例 ID / Instance ID
    */
-  constructor(logDir: string, deerflowPath: string) {
+  constructor(logDir: string, deerflowPath: string, instanceId: string = 'default') {
     this.logger = getLogger('ProcessMgr');
     this.healthChecker = new HealthChecker();
     this.logDir = logDir;
     this.deerflowPath = deerflowPath;
+    this.instanceId = instanceId;
     this.dotEnvVars = loadDotEnv(deerflowPath);
   }
 
@@ -146,10 +149,13 @@ export class ProcessManager {
 
     try {
       // 创建并初始化 PM2 运行时 / Create and initialize PM2 runtime
-      this.pm2Runtime = new PM2Runtime({ logDir: this.logDir });
+      this.pm2Runtime = new PM2Runtime({ 
+        logDir: this.logDir,
+        instanceId: this.instanceId,
+      });
       await this.pm2Runtime.initialize();
       this.connected = true;
-      this.logger.debug('Connected to PM2 (bundled)');
+      this.logger.debug(`Connected to PM2 (instance: ${this.instanceId})`);
 
       // 清理不属于当前实例的过期进程 / Clean up stale processes from other instances
       await this.cleanupStaleProcesses();

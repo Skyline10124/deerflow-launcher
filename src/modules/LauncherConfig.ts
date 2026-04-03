@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { getLogger } from './Logger.js';
+import { ServiceName } from '../types/index.js';
 
 const logger = getLogger('LauncherConfig');
 
@@ -11,14 +12,22 @@ export interface PathConfig {
   description?: string;
 }
 
+export interface InstanceStatus {
+  running: boolean;
+  services: ServiceName[];
+  lastActive?: string;
+}
+
 export interface LauncherConfigData {
   deerflowPaths: PathConfig[];
   defaultPath: string | null;
+  instanceStatuses: Record<string, InstanceStatus>;
 }
 
 const DEFAULT_CONFIG: LauncherConfigData = {
   deerflowPaths: [],
   defaultPath: null,
+  instanceStatuses: {},
 };
 
 function getConfigDir(): string {
@@ -50,6 +59,7 @@ export function loadConfig(): LauncherConfigData {
     const config: LauncherConfigData = {
       deerflowPaths: [],
       defaultPath: null,
+      instanceStatuses: {},
     };
     
     if (Array.isArray(rawConfig.deerflowPaths)) {
@@ -60,6 +70,10 @@ export function loadConfig(): LauncherConfigData {
     
     if (typeof rawConfig.defaultPath === 'string') {
       config.defaultPath = rawConfig.defaultPath;
+    }
+    
+    if (rawConfig.instanceStatuses && typeof rawConfig.instanceStatuses === 'object') {
+      config.instanceStatuses = rawConfig.instanceStatuses as Record<string, InstanceStatus>;
     }
     
     return config;
@@ -77,6 +91,7 @@ export function saveConfig(config: LauncherConfigData): void {
   const cleanConfig: LauncherConfigData = {
     deerflowPaths: config.deerflowPaths,
     defaultPath: config.defaultPath,
+    instanceStatuses: config.instanceStatuses,
   };
   
   try {
@@ -178,4 +193,44 @@ export function clearConfig(): void {
 
 export function getConfigPath(): string {
   return getConfigFilePath();
+}
+
+export function getInstanceStatus(name: string): InstanceStatus | undefined {
+  const config = loadConfig();
+  return config.instanceStatuses[name];
+}
+
+export function getAllInstanceStatuses(): Record<string, InstanceStatus> {
+  const config = loadConfig();
+  return config.instanceStatuses;
+}
+
+export function updateInstanceStatus(
+  name: string, 
+  status: Partial<InstanceStatus>
+): void {
+  const config = loadConfig();
+  
+  const existing = config.instanceStatuses[name] || {
+    running: false,
+    services: [],
+  };
+  
+  config.instanceStatuses[name] = {
+    ...existing,
+    ...status,
+    lastActive: new Date().toISOString(),
+  };
+  
+  saveConfig(config);
+}
+
+export function clearInstanceStatus(name: string): void {
+  const config = loadConfig();
+  delete config.instanceStatuses[name];
+  saveConfig(config);
+}
+
+export function getInstanceId(name: string): string {
+  return name;
 }

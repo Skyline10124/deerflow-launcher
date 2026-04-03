@@ -12,15 +12,9 @@ import { execSync } from 'child_process';
 import Table from 'cli-table3';
 import chalk from 'chalk';
 import { Logger, getLogger } from './Logger.js';
+import { PM2Runtime } from './PM2Runtime.js';
 import { ServiceName } from '../types/index.js';
 
-/**
- * PM2 模块
- * PM2 module
- * 
- * 使用 require 导入以兼容 pkg 打包
- * Use require for pkg compatibility
- */
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const pm2 = require('pm2');
@@ -277,16 +271,22 @@ export class ProcessMonitor {
   private lastRestartTime: Map<string, number> = new Map();
   /** 错误处理回调 / Error handler callback */
   private onServiceError?: (serviceName: string, error: Error) => void;
+  /** PM2 运行时实例 / PM2 runtime instance */
+  private pm2Runtime: PM2Runtime | null = null;
+  /** 实例 ID / Instance ID */
+  private instanceId: string;
 
   /**
    * 创建进程监控器实例
    * Create a ProcessMonitor instance
    * 
    * @param config - 部分监控配置 / Partial monitor configuration
+   * @param instanceId - 实例 ID / Instance ID
    */
-  constructor(config: Partial<MonitorConfig> = {}) {
+  constructor(config: Partial<MonitorConfig> = {}, instanceId: string = 'default') {
     this.logger = getLogger('ProcMonitor');
     this.config = { ...DEFAULT_CONFIG, ...config };
+    this.instanceId = instanceId;
   }
 
   /**
@@ -296,17 +296,15 @@ export class ProcessMonitor {
   async connect(): Promise<void> {
     if (this.connected) return;
 
-    await new Promise<void>((resolve, reject) => {
-      pm2.connect((err: Error | null) => {
-        if (err) {
-          reject(err);
-        } else {
-          this.connected = true;
-          this.logger.debug('ProcessMonitor connected to PM2');
-          resolve();
-        }
-      });
-    });
+    try {
+      this.pm2Runtime = new PM2Runtime({ instanceId: this.instanceId });
+      await this.pm2Runtime.initialize();
+      this.connected = true;
+      this.logger.debug(`ProcessMonitor connected to PM2 (instance: ${this.instanceId})`);
+    } catch (error) {
+      this.pm2Runtime = null;
+      throw error;
+    }
   }
 
   /**
@@ -317,7 +315,14 @@ export class ProcessMonitor {
     if (!this.connected) return;
     
     this.stopMonitoring();
-    pm2.disconnect();
+    
+    if (this.pm2Runtime) {
+      try {
+        await this.pm2Runtime.disconnect();
+      } catch {}
+      this.pm2Runtime = null;
+    }
+    
     this.connected = false;
     this.logger.debug('ProcessMonitor disconnected');
   }

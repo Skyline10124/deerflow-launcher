@@ -7,7 +7,6 @@ import {
   registerLogsCommands,
   registerConfigCommands,
   registerDoctorCommands,
-  registerDemoCommand,
   registerDashboardCommand
 } from './commands/index.js';
 import { CLIError, ErrorCode } from './utils/errors.js';
@@ -21,7 +20,7 @@ import { Logger, setDefaultLogger } from '../modules/Logger.js';
 import { ConfigInitializer } from '../modules/ConfigInitializer.js';
 import { SERVICE_START_ORDER, getServiceDefinitions } from '../config/services.js';
 import { existsSync } from 'fs';
-import { getDeerFlowPath, clearCache } from '../utils/env.js';
+import { getDeerFlowPath, getDeerFlowPathWithInstanceId, clearCache } from '../utils/env.js';
 import { getPackageVersion } from '../utils/version.js';
 
 let globalDeerFlowPath: string | undefined;
@@ -168,16 +167,19 @@ class ServiceManagerAdapter implements IServiceManager {
   private configService: ConfigServiceAdapter;
   private logDir: string;
   private logger: Logger;
+  private instanceId: string;
 
   constructor() {
-    this.logDir = getLogDir();
-    this.logger = new Logger('CLI', { logDir: this.logDir });
-    setDefaultLogger(this.logger);
-    this.processManager = new ProcessManager(this.logDir, getDeerFlowPath({
+    const { path: deerflowPath, instanceId } = getDeerFlowPathWithInstanceId({
       cliPath: globalDeerFlowPath,
       usePath: globalUsePath,
-    }));
-    this.processMonitor = new ProcessMonitor();
+    });
+    this.instanceId = instanceId;
+    this.logDir = join(deerflowPath, 'logs');
+    this.logger = new Logger('CLI', { logDir: this.logDir });
+    setDefaultLogger(this.logger);
+    this.processManager = new ProcessManager(this.logDir, deerflowPath, instanceId);
+    this.processMonitor = new ProcessMonitor({}, instanceId);
     this.logService = new LogServiceAdapter();
     this.configService = new ConfigServiceAdapter();
   }
@@ -428,7 +430,6 @@ export async function createCLI(): Promise<Command> {
   registerLogsCommands(program, services);
   registerConfigCommands(program, services);
   registerDoctorCommands(program, services);
-  registerDemoCommand(program);
   registerDashboardCommand(program);
 
   return program;

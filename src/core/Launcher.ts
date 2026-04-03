@@ -30,6 +30,7 @@ export interface LauncherOptions {
   deerflowPath: string;
   logDir?: string;
   logLevel?: LogLevel;
+  instanceId?: string;
 }
 
 /**
@@ -46,9 +47,11 @@ export class Launcher {
   private context: LaunchContext;
   private isStopping: boolean = false;
   private isCleaningUp: boolean = false;
+  private instanceId: string;
 
   constructor(options: LauncherOptions) {
     const logDir = options.logDir ?? path.join(process.cwd(), 'logs');
+    this.instanceId = options.instanceId ?? 'default';
     
     this.logger = getLogger('Launcher', {
       level: options.logLevel ?? LogLevel.INFO,
@@ -60,8 +63,8 @@ export class Launcher {
     this.context = createLaunchContext(options.deerflowPath, logDir);
     this.envChecker = new EnvChecker();
     this.configInitializer = new ConfigInitializer(options.deerflowPath, logDir);
-    this.processManager = new ProcessManager(logDir, options.deerflowPath);
-    this.processMonitor = new ProcessMonitor();
+    this.processManager = new ProcessManager(logDir, options.deerflowPath, this.instanceId);
+    this.processMonitor = new ProcessMonitor({}, this.instanceId);
     this.configWatcher = new ConfigWatcher(options.deerflowPath);
   }
 

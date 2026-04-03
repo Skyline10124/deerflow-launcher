@@ -11,6 +11,7 @@ import path from 'path'
 
 async function main() {
   const deerflowPath = process.env.DEERFLOW_PATH ?? process.cwd()
+  const instanceId = process.env.INSTANCE_ID ?? 'default'
   const logDir = path.join(deerflowPath, 'logs')
   const noMonitor = process.env.NO_MONITOR === 'true'
   
@@ -19,9 +20,9 @@ async function main() {
     logDir,
   })
   
-  const processManager = new ProcessManager(logDir, deerflowPath)
+  const processManager = new ProcessManager(logDir, deerflowPath, instanceId)
   const logManager = new LogManager(logDir)
-  const processMonitor = new ProcessMonitor()
+  const processMonitor = new ProcessMonitor({}, instanceId)
   
   try {
     await processManager.connect()
@@ -34,6 +35,7 @@ async function main() {
       deerflowPath,
       logDir,
       logLevel: LogLevel.INFO,
+      instanceId,
     })
     
     const cleanup = async () => {
