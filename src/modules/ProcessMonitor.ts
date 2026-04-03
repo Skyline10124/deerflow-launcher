@@ -21,6 +21,8 @@ import { ServiceName } from '../types/index.js';
  * 使用 require 导入以兼容 pkg 打包
  * Use require for pkg compatibility
  */
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 const pm2 = require('pm2');
 import type { ProcessDescription } from 'pm2';
 

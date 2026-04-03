@@ -28,6 +28,9 @@ import {
  * 使用 require 导入以兼容 pkg 打包
  * Use require for pkg compatibility
  */
+// Use require for pkg compatibility but bypass ESM static analysis
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 const pm2 = require('pm2');
 import type { Proc, ProcessDescription } from 'pm2';
 

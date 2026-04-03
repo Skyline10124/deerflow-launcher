@@ -426,7 +426,7 @@ export async function runCLI(): Promise<void> {
     await program.parseAsync(process.argv);
   } catch (error: unknown) {
     const err = error as { code?: string };
-    if (err?.code === 'commander.helpDisplayed' || err?.code === 'commander.version') {
+    if (err?.code === 'commander.help' || err?.code === 'commander.helpDisplayed' || err?.code === 'commander.version') {
       process.exit(0);
     }
     
