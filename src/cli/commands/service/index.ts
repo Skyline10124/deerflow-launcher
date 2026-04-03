@@ -1,11 +1,11 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import type { IServiceManager, ServiceStatusInfo } from '../../../core/interfaces/IServiceManager';
-import { CLIError, ErrorCode } from '../../utils/errors';
-import { formatServiceTable, formatSimpleList } from '../../components/ServiceTable';
-import { confirmDestructive } from '../../components/ConfirmPrompt';
-import { ServiceName } from '../../../types';
+import type { IServiceManager, ServiceStatusInfo } from '../../../core/interfaces/IServiceManager.js';
+import { CLIError, ErrorCode } from '../../utils/errors.js';
+import { formatServiceTable, formatSimpleList } from '../../components/ServiceTable.js';
+import { confirmDestructive } from '../../components/ConfirmPrompt.js';
+import { ServiceName } from '../../../types/index.js';
 
 export function registerStartCommand(
   program: Command, 

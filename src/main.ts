@@ -1,8 +1,8 @@
 import * as path from 'path';
-import { Launcher, LauncherOptions } from './core/Launcher';
-import { LogLevel, parseLogLevel } from './modules/Logger';
-import { ProcessManager } from './modules/ProcessManager';
-import { getDeerFlowPath } from './utils/env';
+import { Launcher, LauncherOptions } from './core/Launcher.js';
+import { LogLevel, parseLogLevel } from './modules/Logger.js';
+import { ProcessManager } from './modules/ProcessManager.js';
+import { getDeerFlowPath } from './utils/env.js';
 
 const DEBUG_MODE = process.env.DEBUG_LAUNCHER === 'true';
 const CLEAN_MODE = process.argv.includes('--clean') || process.argv.includes('-c');

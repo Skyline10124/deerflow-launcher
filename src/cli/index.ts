@@ -6,21 +6,22 @@ import {
   registerServiceCommands,
   registerLogsCommands,
   registerConfigCommands,
-  registerDoctorCommands
-} from './commands';
-import { CLIError, ErrorCode } from './utils/errors';
-import type { IServiceManager, ServiceStatusInfo, ILogService, IConfigService } from '../core/interfaces/IServiceManager';
-import type { ServiceInstance } from '../types';
-import { ServiceStatus, ServiceName } from '../types';
-import { ProcessManager } from '../modules/ProcessManager';
-import { ProcessMonitor, ProcessStatus } from '../modules/ProcessMonitor';
-import { LogManager } from '../modules/LogManager';
-import { Logger, setDefaultLogger } from '../modules/Logger';
-import { ConfigInitializer } from '../modules/ConfigInitializer';
-import { SERVICE_START_ORDER, getServiceDefinitions } from '../config/services';
+  registerDoctorCommands,
+  registerDemoCommand
+} from './commands/index.js';
+import { CLIError, ErrorCode } from './utils/errors.js';
+import type { IServiceManager, ServiceStatusInfo, ILogService, IConfigService } from '../core/interfaces/IServiceManager.js';
+import type { ServiceInstance } from '../types/index.js';
+import { ServiceStatus, ServiceName } from '../types/index.js';
+import { ProcessManager } from '../modules/ProcessManager.js';
+import { ProcessMonitor, ProcessStatus } from '../modules/ProcessMonitor.js';
+import { LogManager } from '../modules/LogManager.js';
+import { Logger, setDefaultLogger } from '../modules/Logger.js';
+import { ConfigInitializer } from '../modules/ConfigInitializer.js';
+import { SERVICE_START_ORDER, getServiceDefinitions } from '../config/services.js';
 import { existsSync } from 'fs';
-import { getDeerFlowPath } from '../utils/env';
-import { getPackageVersion } from '../utils/version';
+import { getDeerFlowPath } from '../utils/env.js';
+import { getPackageVersion } from '../utils/version.js';
 
 /**
  * 获取日志目录路径
@@ -414,6 +415,7 @@ export async function createCLI(): Promise<Command> {
   registerLogsCommands(program, services);
   registerConfigCommands(program, services);
   registerDoctorCommands(program, services);
+  registerDemoCommand(program);
 
   return program;
 }

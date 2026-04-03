@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 import { Box, Text } from 'ink'
-import { LogEntry, LogLevel } from '../types'
-import { STATUS_COLORS } from '../utils/colors'
+import { LogEntry, LogLevel } from '../types/index.js'
+import { STATUS_COLORS } from '../utils/colors.js'
 
 export interface LogPanelProps {
   logs: LogEntry[]

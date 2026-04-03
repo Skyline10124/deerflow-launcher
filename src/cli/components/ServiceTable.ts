@@ -1,9 +1,9 @@
-import type { ServiceStatusInfo } from '../../core/interfaces/IServiceManager';
+import type { ServiceStatusInfo } from '../../core/interfaces/IServiceManager.js';
 import { 
   formatStatusTable as formatProcessStatusTable, 
   formatSimpleList as formatProcessSimpleList,
   ProcessStatus 
-} from '../../modules/ProcessMonitor';
+} from '../../modules/ProcessMonitor.js';
 
 export function formatServiceTable(services: ServiceStatusInfo[]): string {
   const processStatuses: ProcessStatus[] = services.map(svc => ({

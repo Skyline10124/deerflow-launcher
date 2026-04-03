@@ -1,4 +1,4 @@
-import { PROGRESS_BAR } from './icons'
+import { PROGRESS_BAR } from './icons.js'
 
 export function formatMemory(bytes: number): string {
   if (bytes < 1024) return `${bytes}B`

@@ -13,8 +13,8 @@
  * @module GracefulShutdown
  */
 
-import { Logger, getLogger } from './Logger';
-import { ServiceName } from '../types';
+import { Logger, getLogger } from './Logger.js';
+import { ServiceName } from '../types/index.js';
 
 /**
  * 关闭结果

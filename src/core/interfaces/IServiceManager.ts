@@ -1,4 +1,4 @@
-import { ServiceName } from '../../types';
+import { ServiceName } from '../../types/index.js';
 
 export interface ServiceStatusInfo {
   name: ServiceName;

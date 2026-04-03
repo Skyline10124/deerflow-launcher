@@ -1,5 +1,4 @@
-import { ProcessMonitor, formatStatusTable, formatBytes, formatUptime } from '../../src/modules/ProcessMonitor';
-import { ServiceName } from '../../src/types';
+import { ProcessMonitor, formatStatusTable, formatBytes, formatUptime } from '../../src/modules/ProcessMonitor.js';
 
 describe('ProcessMonitor', () => {
   let monitor: ProcessMonitor;

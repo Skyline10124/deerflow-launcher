@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import type { IServiceManager } from '../../../core/interfaces/IServiceManager';
-import { ErrorCode, ErrorMessages, ErrorSuggestions } from '../../utils/errors';
+import type { IServiceManager } from '../../../core/interfaces/IServiceManager.js';
+import { ErrorCode, ErrorMessages, ErrorSuggestions } from '../../utils/errors.js';
 
 interface EnvCheck {
   name: string;

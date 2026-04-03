@@ -1,6 +1,6 @@
 import * as net from 'net';
-import { Logger, getLogger } from './Logger';
-import { HealthCheckOptions, HealthCheckResult } from '../types';
+import { Logger, getLogger } from './Logger.js';
+import { HealthCheckOptions, HealthCheckResult } from '../types/index.js';
 
 export class HealthChecker {
   private logger: Logger;

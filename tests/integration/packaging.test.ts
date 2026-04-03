@@ -7,7 +7,7 @@ import {
   getScriptPath,
   getEntryPath,
   PM2Runtime
-} from '../../src/modules/PM2Runtime';
+} from '../../src/modules/PM2Runtime.js';
 
 interface ProcessWithPkg {
   pkg?: unknown;

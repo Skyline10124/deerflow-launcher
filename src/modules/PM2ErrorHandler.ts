@@ -8,7 +8,7 @@
  * @module PM2ErrorHandler
  */
 
-import { Logger, getLogger } from './Logger';
+import { Logger, getLogger } from './Logger.js';
 
 /**
  * PM2 错误码常量

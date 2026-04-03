@@ -10,16 +10,16 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
-import { Logger, getLogger } from './Logger';
-import { HealthChecker } from './HealthChecker';
-import { PM2Runtime, getScriptPath } from './PM2Runtime';
-import { loadDotEnv } from '../utils/env';
+import { Logger, getLogger } from './Logger.js';
+import { HealthChecker } from './HealthChecker.js';
+import { PM2Runtime, getScriptPath } from './PM2Runtime.js';
+import { loadDotEnv } from '../utils/env.js';
 import {
   ServiceDefinition,
   ServiceInstance,
   ServiceStatus,
   ServiceName
-} from '../types';
+} from '../types/index.js';
 
 /**
  * PM2 模块

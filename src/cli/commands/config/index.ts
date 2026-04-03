@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import type { IServiceManager } from '../../../core/interfaces/IServiceManager';
-import { CLIError, ErrorCode } from '../../utils/errors';
+import type { IServiceManager } from '../../../core/interfaces/IServiceManager.js';
+import { CLIError, ErrorCode } from '../../utils/errors.js';
 
 export function registerConfigCommands(
   program: Command,

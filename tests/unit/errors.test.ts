@@ -5,8 +5,8 @@ import {
   getErrorSuggestion,
   createEnvError,
   createStartError
-} from '../../src/utils/errors';
-import { ErrorCodes, ServiceName } from '../../src/types';
+} from '../../src/utils/errors.js';
+import { ErrorCodes, ServiceName } from '../../src/types/index.js';
 
 describe('Error Utils', () => {
   describe('LauncherException', () => {

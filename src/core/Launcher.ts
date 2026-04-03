@@ -1,10 +1,10 @@
 import * as path from 'path';
-import { Logger, getLogger, setDefaultLogger, LogLevel } from '../modules/Logger';
-import { EnvChecker } from '../modules/EnvChecker';
-import { ConfigInitializer } from '../modules/ConfigInitializer';
-import { ProcessManager } from '../modules/ProcessManager';
-import { ProcessMonitor } from '../modules/ProcessMonitor';
-import { ConfigWatcher, ConfigChange } from '../modules/ConfigWatcher';
+import { Logger, getLogger, setDefaultLogger, LogLevel } from '../modules/Logger.js';
+import { EnvChecker } from '../modules/EnvChecker.js';
+import { ConfigInitializer } from '../modules/ConfigInitializer.js';
+import { ProcessManager } from '../modules/ProcessManager.js';
+import { ProcessMonitor } from '../modules/ProcessMonitor.js';
+import { ConfigWatcher, ConfigChange } from '../modules/ConfigWatcher.js';
 import {
   LaunchContext,
   LaunchResult,
@@ -12,7 +12,7 @@ import {
   ServiceInstance,
   ServiceName,
   ServiceStatus
-} from '../types';
+} from '../types/index.js';
 import {
   createLaunchContext,
   setLaunchStatus,
@@ -20,10 +20,10 @@ import {
   getAllServices,
   getElapsedSeconds,
   formatDuration
-} from './LaunchContext';
-import { getServiceDefinitions, SERVICE_START_ORDER } from '../config/services';
-import { LauncherException, createEnvError, createStartError, createConfigError } from '../utils/errors';
-import { getPackageVersion } from '../utils/version';
+} from './LaunchContext.js';
+import { getServiceDefinitions, SERVICE_START_ORDER } from '../config/services.js';
+import { LauncherException, createEnvError, createStartError, createConfigError } from '../utils/errors.js';
+import { getPackageVersion } from '../utils/version.js';
 
 /** Launcher 配置选项 */
 export interface LauncherOptions {

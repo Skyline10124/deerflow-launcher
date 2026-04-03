@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { Logger, getLogger } from './Logger';
+import { Logger, getLogger } from './Logger.js';
 
 /** 配置变更事件 */
 export interface ConfigChange {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { TerminalSize } from '../types'
+import { TerminalSize } from '../types/index.js'
 
 export interface UseTerminalSizeOptions {
   debounceMs?: number

@@ -1,10 +1,10 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import * as readline from 'readline';
-import type { IServiceManager } from '../../../core/interfaces/IServiceManager';
-import { CLIError, ErrorCode } from '../../utils/errors';
-import { formatLogLevel, formatTimestamp, LogFormatOptions } from '../../utils/format';
-import { ServiceName } from '../../../types';
+import type { IServiceManager } from '../../../core/interfaces/IServiceManager.js';
+import { CLIError, ErrorCode } from '../../utils/errors.js';
+import { formatLogLevel, formatTimestamp, LogFormatOptions } from '../../utils/format.js';
+import { ServiceName } from '../../../types/index.js';
 
 function formatLogLine(line: string, options: LogFormatOptions = {}): string {
   const timestampMatch = line.match(/^\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)\]/);

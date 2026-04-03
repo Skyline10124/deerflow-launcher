@@ -4,8 +4,8 @@ import {
   ServiceInstance,
   ServiceName,
   ServiceStatus
-} from '../types';
-import { SERVICE_START_ORDER, SERVICE_PORTS } from '../config/services';
+} from '../types/index.js';
+import { SERVICE_START_ORDER, SERVICE_PORTS } from '../config/services.js';
 
 export function createLaunchContext(deerflowPath: string, logDir: string): LaunchContext {
   const services = new Map<ServiceName, ServiceInstance>();

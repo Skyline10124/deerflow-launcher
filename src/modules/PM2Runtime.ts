@@ -16,8 +16,8 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-import { Logger, getLogger } from './Logger';
-import { PM2Error, PM2ErrorCodes } from './PM2ErrorHandler';
+import { Logger, getLogger } from './Logger.js';
+import { PM2Error, PM2ErrorCodes } from './PM2ErrorHandler.js';
 
 /**
  * PM2 模块

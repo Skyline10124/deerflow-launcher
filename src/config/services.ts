@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { ServiceDefinition, ServiceName } from '../types';
+import { ServiceDefinition, ServiceName } from '../types/index.js';
 
 function getEnvInt(key: string, defaultValue: number): number {
   const value = process.env[key];

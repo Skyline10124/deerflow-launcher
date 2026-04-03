@@ -1,6 +1,6 @@
 import React from 'react'
 import { Box } from 'ink'
-import { ServiceCard, ServiceCardProps } from './ServiceCard'
+import { ServiceCard, ServiceCardProps } from './ServiceCard.js'
 
 export interface ServiceGridProps {
   services: ServiceCardProps[]

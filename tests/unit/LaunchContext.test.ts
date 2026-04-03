@@ -7,8 +7,8 @@ import {
   getFailedServices,
   setLaunchStatus,
   formatDuration
-} from '../../src/core/LaunchContext';
-import { ServiceName, ServiceStatus, LaunchStatus } from '../../src/types';
+} from '../../src/core/LaunchContext.js';
+import { ServiceName, ServiceStatus, LaunchStatus } from '../../src/types/index.js';
 
 describe('LaunchContext', () => {
   const testPath = '/test/deerflow';

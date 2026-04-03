@@ -1,4 +1,4 @@
-import { Logger, LogLevel } from '../../src/modules/Logger';
+import { Logger, LogLevel } from '../../src/modules/Logger.js';
 import * as fs from 'fs';
 import * as path from 'path';
 

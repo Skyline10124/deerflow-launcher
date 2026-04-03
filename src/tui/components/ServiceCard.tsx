@@ -1,10 +1,10 @@
 import React from 'react'
 import { Box, Text } from 'ink'
 import Spinner from 'ink-spinner'
-import { ServiceStatus } from '../types'
-import { STATUS_COLORS } from '../utils/colors'
-import { STATUS_ICONS } from '../utils/icons'
-import { formatMemory } from '../utils/format'
+import { ServiceStatus } from '../types/index.js'
+import { STATUS_COLORS } from '../utils/colors.js'
+import { STATUS_ICONS } from '../utils/icons.js'
+import { formatMemory } from '../utils/format.js'
 
 export interface ServiceCardProps {
   name: string

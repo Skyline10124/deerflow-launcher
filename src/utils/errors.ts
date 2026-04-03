@@ -1,4 +1,4 @@
-import { LauncherError, ErrorCode, ErrorCodes, ServiceName, ErrorContext } from '../types';
+import { LauncherError, ErrorCode, ErrorCodes, ServiceName, ErrorContext } from '../types/index.js';
 
 export class LauncherException extends Error {
   public readonly code: ErrorCode;

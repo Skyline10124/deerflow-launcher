@@ -1,10 +1,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as net from 'net';
-import { Logger, getLogger } from './Logger';
-import { safeSpawnSync } from '../utils/command';
-import { compareVersions } from '../utils/version';
-import { VERSION_REQUIREMENTS } from '../utils/requirements';
+import { Logger, getLogger } from './Logger.js';
+import { safeSpawnSync } from '../utils/command.js';
+import { compareVersions } from '../utils/version.js';
+import { VERSION_REQUIREMENTS } from '../utils/requirements.js';
 
 export interface DoctorCheckItem {
   category: 'runtime' | 'package' | 'service' | 'network' | 'config';

@@ -1,4 +1,4 @@
-import { EnvDoctor } from '../../src/modules/EnvDoctor';
+import { EnvDoctor } from '../../src/modules/EnvDoctor.js';
 import * as fs from 'fs';
 import * as path from 'path';
 

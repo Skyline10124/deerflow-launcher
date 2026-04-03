@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { ConfigInitializer } from '../../src/modules/ConfigInitializer';
-import { EnvChecker } from '../../src/modules/EnvChecker';
+import { ConfigInitializer } from '../../src/modules/ConfigInitializer.js';
+import { EnvChecker } from '../../src/modules/EnvChecker.js';
 
 describe('Integration Tests', () => {
   describe('EnvChecker Integration', () => {

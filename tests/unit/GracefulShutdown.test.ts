@@ -1,5 +1,5 @@
-import { GracefulShutdown } from '../../src/modules/GracefulShutdown';
-import { ServiceName } from '../../src/types';
+import { GracefulShutdown } from '../../src/modules/GracefulShutdown.js';
+import { ServiceName } from '../../src/types/index.js';
 
 describe('GracefulShutdown', () => {
   let shutdown: GracefulShutdown;

@@ -1,5 +1,5 @@
 import * as net from 'net';
-import { HealthChecker } from '../../src/modules/HealthChecker';
+import { HealthChecker } from '../../src/modules/HealthChecker.js';
 
 describe('HealthChecker', () => {
   let healthChecker: HealthChecker;

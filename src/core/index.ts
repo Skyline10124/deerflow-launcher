@@ -1,4 +1,4 @@
-export { Launcher, LauncherOptions } from './Launcher';
+export { Launcher, LauncherOptions } from './Launcher.js';
 export {
   createLaunchContext,
   updateServiceStatus,
@@ -10,4 +10,4 @@ export {
   getElapsedSeconds,
   formatDuration,
   printContextSummary
-} from './LaunchContext';
+} from './LaunchContext.js';

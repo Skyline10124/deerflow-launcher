@@ -1,5 +1,5 @@
-import { LogManager } from '../../src/modules/LogManager';
-import { ServiceName } from '../../src/types';
+import { LogManager } from '../../src/modules/LogManager.js';
+import { ServiceName } from '../../src/types/index.js';
 import * as fs from 'fs';
 import * as path from 'path';
 

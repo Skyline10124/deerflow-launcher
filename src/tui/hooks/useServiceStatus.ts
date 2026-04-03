@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { ServiceInfo, ServiceStatus } from '../types'
+import { ServiceInfo, ServiceStatus } from '../types/index.js'
 
 export interface UseServiceStatusOptions {
   interval?: number

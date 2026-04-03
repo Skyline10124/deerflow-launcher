@@ -2,6 +2,7 @@
   "name": "deerflow-launcher",
   "version": "0.4.2-alpha",
   "description": "DeerFlow Desktop Launcher - Service management and startup",
+  "type": "module",
   "main": "dist/src/main.js",
   "bin": {
     "deerflow-launcher": "./dist/src/cli.js"
@@ -21,7 +22,8 @@
     "build:pkg": "node scripts/build-pkg.js",
     "build:win": "npm run build:pkg",
     "build:linux": "npm run build:pkg",
-    "build:mac": "npm run build:pkg"
+    "build:mac": "npm run build:pkg",
+    "tui:demo": "tsx src/tui/demo.tsx"
   },
   "keywords": [
     "deerflow",
@@ -61,6 +63,7 @@
     "ts-jest": "^29.4.9",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
   "engines": {

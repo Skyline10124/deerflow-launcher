@@ -11,8 +11,8 @@
 import { execSync } from 'child_process';
 import Table from 'cli-table3';
 import chalk from 'chalk';
-import { Logger, getLogger } from './Logger';
-import { ServiceName } from '../types';
+import { Logger, getLogger } from './Logger.js';
+import { ServiceName } from '../types/index.js';
 
 /**
  * PM2 模块

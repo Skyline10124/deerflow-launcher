@@ -1,7 +1,7 @@
-import { Logger, getLogger } from './Logger';
-import { EnvCheckResult, DependencyInfo, ErrorCodes } from '../types';
-import { safeSpawnSync } from '../utils/command';
-import { compareVersions } from '../utils/version';
+import { Logger, getLogger } from './Logger.js';
+import { EnvCheckResult, DependencyInfo, ErrorCodes } from '../types/index.js';
+import { safeSpawnSync } from '../utils/command.js';
+import { compareVersions } from '../utils/version.js';
 
 /** 依赖项配置接口 */
 interface DependencyConfig {

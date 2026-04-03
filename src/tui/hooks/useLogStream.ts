@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { LogEntry, LogLevel } from '../types'
+import { LogEntry, LogLevel } from '../types/index.js'
 
 export interface UseLogStreamOptions {
   maxLogs?: number

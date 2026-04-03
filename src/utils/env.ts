@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { getLogger } from '../modules/Logger';
+import { getLogger } from '../modules/Logger.js';
 
 const logger = getLogger('Env');
 
