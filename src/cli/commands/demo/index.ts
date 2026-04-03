@@ -9,7 +9,8 @@ export function registerDemoCommand(program: Command): void {
     .description('Launch TUI demo dashboard')
     .action(async () => {
       const currentDir = dirname(fileURLToPath(import.meta.url))
-      const demoPath = join(currentDir, '..', '..', '..', 'tui', 'screens', 'DemoDashboard.tsx')
+      const projectRoot = join(currentDir, '..', '..', '..', '..', '..')
+      const demoPath = join(projectRoot, 'src', 'tui', 'demo.tsx')
       
       const child = spawn('npx', ['tsx', demoPath], {
         stdio: 'inherit',
