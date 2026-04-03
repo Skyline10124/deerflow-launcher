@@ -7,7 +7,8 @@ import {
   registerLogsCommands,
   registerConfigCommands,
   registerDoctorCommands,
-  registerDemoCommand
+  registerDemoCommand,
+  registerDashboardCommand
 } from './commands/index.js';
 import { CLIError, ErrorCode } from './utils/errors.js';
 import type { IServiceManager, ServiceStatusInfo, ILogService, IConfigService } from '../core/interfaces/IServiceManager.js';
@@ -416,6 +417,7 @@ export async function createCLI(): Promise<Command> {
   registerConfigCommands(program, services);
   registerDoctorCommands(program, services);
   registerDemoCommand(program);
+  registerDashboardCommand(program);
 
   return program;
 }
