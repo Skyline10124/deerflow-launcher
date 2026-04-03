@@ -30,12 +30,23 @@
   - 服务特定解析器：`LauncherParser`、`LangGraphParser`、`GatewayParser`、`FrontendParser`、`NginxParser`
   - `LogParserRegistry` 解析器注册表，自动选择正确的解析器
   - 工具函数：`formatTimestamp()`、`formatDisplayTime()`、`normalizeLevel()`
+  - 多行日志级别继承：ERROR 日志的后续行自动继承 ERROR 级别
+- **日志写入器** (`LogWriter.ts`)
+  - 通过 PM2 `launchBus` 实时捕获服务日志事件
+  - 解析后以统一格式写入日志文件
+  - 支持日志轮转（默认 10MB 单文件，最多 5 个备份）
+  - 统一日志格式：`[timestamp] [level] [service] message`
+- **打包优化**：添加 Brotli 压缩，减少约 30-40% 文件大小
 
 ### 变更
 
 - **PM2 架构统一**：所有 PM2 操作统一通过 `PM2Runtime` 管理
   - `ProcessManager` 和 `ProcessMonitor` 使用 `PM2Runtime` 连接
   - 支持实例隔离的 `instanceId` 参数
+- **PM2 日志配置变更**：PM2 不再直接写入日志文件
+  - `out_file` 和 `error_file` 设置为 `/dev/null`
+  - 服务日志由 `LogWriter` 统一捕获和写入
+  - 移除 `PM2ProcessConfig` 中不再使用的字段：`log_file`、`merge_logs`、`time`
 - **类型定义重构**：TUI 类型系统优化
   - 新增 `Theme`、`NavigationState`、`DashboardState`、`LogService` 接口
   - `Service` 接口增加 `id`、`description`、`pid`、`cpu`、`memory`、`uptime` 字段
@@ -44,6 +55,11 @@
   - `Logger.ts` 使用 `LogParser.formatTimestamp()` 替代本地实现
   - `LogManager.ts` 移除 `LogEntry` 接口和 `parseLine()` 方法，使用 `UnifiedLogEntry` 和 `logParserRegistry`
   - 统一日志级别类型：`UnifiedLogLevel` (字符串枚举) 用于显示，`LogLevel` (数字枚举) 用于级别比较
+- **日志解析器优化**：
+  - `LangGraphParser`：正确匹配 `[level]` 格式，压缩多余空格
+  - `GatewayParser`：支持 Python 文本格式日志（`2026-04-04 01:47:29 - httpx - INFO - ...`）
+  - `FrontendParser`：支持 Next.js 日志格式，从 HTTP 状态码推断日志级别
+  - 移除 `UnifiedLogEntry.formattedLine` 字段（冗余）
 - **TUI 性能优化**：解决输入卡顿问题
   - `useLogStream` 添加批量更新和 100ms 节流，减少 90%+ 渲染次数
   - `LogPanel` 和 `LogLine` 添加 `React.memo`，避免不必要的重渲染
@@ -58,6 +74,7 @@
 - `demo` 命令：移除 `deerflow-launcher demo` 测试命令
 - `LogManager.LogEntry` 接口：被 `LogParser.UnifiedLogEntry` 替代
 - `LogManager.parseLine()` 方法：被 `logParserRegistry.parse()` 替代
+- `UnifiedLogEntry.formattedLine` 字段：由 TUI 组件自行格式化
 
 ## \[0.4.3-alpha] - 2026-04-03
 
@@ -96,7 +113,7 @@
 
 ### 新增
 
-- **TUI 基础设施 (Phase 1)**：为后续 Dashboard 开发搭建基础
+- **TUI 基础设施**：为后续 Dashboard 开发搭建基础
   - 安装 React + Ink 依赖 (`react@18.3.1`, `ink@5`, `ink-spinner@5.0.0`, `ink-text-input@6.0.0`)
   - 创建 `src/tui/` 目录结构
   - 添加测试依赖 (`jest`, `@testing-library/react@14`, `ink-testing-library`)

@@ -142,12 +142,12 @@ describe('LogManager', () => {
       { 
         id: '1', timestamp: new Date('2024-01-01T00:00:00.000Z'), level: UnifiedLogLevel.INFO, 
         message: 'Msg 1', service: 'launcher', displayTime: '00:00:00', 
-        levelColor: '', serviceColor: '', formattedLine: '[INFO] Msg 1', raw: '[2024-01-01T00:00:00.000Z] [INFO] [Test] Msg 1' 
+        levelColor: '', serviceColor: '', raw: '[2024-01-01T00:00:00.000Z] [INFO] [Test] Msg 1' 
       },
       { 
         id: '2', timestamp: new Date('2024-01-01T00:00:01.000Z'), level: UnifiedLogLevel.ERROR, 
         message: 'Msg 2', service: 'launcher', displayTime: '00:00:01', 
-        levelColor: '', serviceColor: '', formattedLine: '[ERROR] Msg 2', raw: '[2024-01-01T00:00:01.000Z] [ERROR] [Test] Msg 2' 
+        levelColor: '', serviceColor: '', raw: '[2024-01-01T00:00:01.000Z] [ERROR] [Test] Msg 2' 
       }
     ];
     
@@ -162,7 +162,7 @@ describe('LogManager', () => {
       { 
         id: '1', timestamp: new Date('2024-01-01T00:00:00.000Z'), level: UnifiedLogLevel.INFO, 
         message: 'Msg 1', service: 'launcher', displayTime: '00:00:00', 
-        levelColor: '', serviceColor: '', formattedLine: '[INFO] Msg 1', raw: 'raw' 
+        levelColor: '', serviceColor: '', raw: 'raw' 
       }
     ];
     

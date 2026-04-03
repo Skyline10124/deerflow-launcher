@@ -58,7 +58,7 @@ function buildPkgForPlatform(platform) {
   const outputPath = join(PKG_DIR, `deerflow-launcher-${platform.os}${platform.ext}`)
   
   runCommand(
-    `npx @yao-pkg/pkg . --targets ${platform.target} --output "${outputPath}" --public-packages "*" --public`,
+    `npx @yao-pkg/pkg . --targets ${platform.target} --output "${outputPath}" --public-packages "*" --public --compress Brotli`,
     { cwd: ROOT_DIR }
   )
   

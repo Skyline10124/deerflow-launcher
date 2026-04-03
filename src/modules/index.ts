@@ -8,6 +8,7 @@ export { GracefulShutdown, ShutdownResult, ShutdownConfig } from './GracefulShut
 export { EnvDoctor, DoctorReport, DoctorCheckItem, DoctorOptions } from './EnvDoctor.js';
 export { LogManager, LogFilter, LogStats } from './LogManager.js';
 export { ConfigWatcher, ConfigChange, WatchConfig, ConfigChangeHandler } from './ConfigWatcher.js';
+export { LogWriter } from './LogWriter.js';
 export {
   LogParserRegistry,
   logParserRegistry,

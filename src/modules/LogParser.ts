@@ -32,7 +32,6 @@ export interface UnifiedLogEntry {
   displayTime: string;
   levelColor: string;
   serviceColor: string;
-  formattedLine: string;
   source?: string;
   metadata?: Record<string, unknown>;
   raw: string;
@@ -112,7 +111,6 @@ function createBaseEntry(
     displayTime: formatDisplayTime(timestamp),
     levelColor: LOG_LEVEL_COLORS[level],
     serviceColor: SERVICE_COLORS[service],
-    formattedLine: `[${formatTimestamp(timestamp)}] [${level}] [${source || service}] ${message}`,
     source,
     metadata,
     raw,
@@ -128,19 +126,25 @@ export interface ServiceLogParser {
 export class LauncherParser implements ServiceLogParser {
   readonly service: LogServiceName = 'launcher';
   readonly serviceColor = SERVICE_COLORS.launcher;
-  
+
+  private lastLevel: UnifiedLogLevel = UnifiedLogLevel.INFO;
+  private lastTimestamp: Date = new Date();
+
   private pattern = /^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]\s+\[(\w+)\]\s+\[(\w+)\]\s+(.*)$/;
 
   parse(line: string): UnifiedLogEntry {
     const match = line.match(this.pattern);
-    
+
     if (match) {
       const [, timeStr, level, source, message] = match;
       const timestamp = this.parseTime(timeStr);
+      const normalizedLevel = normalizeLevel(level);
+      this.lastLevel = normalizedLevel;
+      this.lastTimestamp = timestamp;
       return createBaseEntry(
         this.service,
         timestamp,
-        normalizeLevel(level),
+        normalizedLevel,
         message,
         line,
         source
@@ -149,8 +153,8 @@ export class LauncherParser implements ServiceLogParser {
 
     return createBaseEntry(
       this.service,
-      new Date(),
-      UnifiedLogLevel.INFO,
+      this.lastTimestamp,
+      this.lastLevel,
       line,
       line
     );
@@ -164,30 +168,42 @@ export class LauncherParser implements ServiceLogParser {
 export class LangGraphParser implements ServiceLogParser {
   readonly service: LogServiceName = 'langgraph';
   readonly serviceColor = SERVICE_COLORS.langgraph;
-  
-  private pattern = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?)\s+(\w+)\s+([\w.]+)\s+-\s+(.*)$/;
+
+  private lastLevel: UnifiedLogLevel = UnifiedLogLevel.INFO;
+  private lastTimestamp: Date = new Date();
 
   parse(line: string): UnifiedLogEntry {
-    const match = line.match(this.pattern);
-    
-    if (match) {
-      const [, timeStr, level, source, message] = match;
+    const timestampMatch = line.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?)\s+/);
+    const levelMatch = line.match(/\[(\w+)\s*\]/);
+
+    if (timestampMatch && levelMatch) {
+      const timeStr = timestampMatch[1];
+      const level = levelMatch[1];
+
+      const afterTimestamp = line.slice(timestampMatch[0].length);
+      const afterLevel = afterTimestamp.replace(/^\s*\[\w+\s*\]\s*/, '');
+
       const timestamp = new Date(timeStr);
+      const message = afterLevel.replace(/\s+/g, ' ').trim();
+      const normalizedLevel = normalizeLevel(level);
+
+      this.lastLevel = normalizedLevel;
+      this.lastTimestamp = timestamp;
+
       return createBaseEntry(
         this.service,
         timestamp,
-        normalizeLevel(level),
+        normalizedLevel,
         message,
-        line,
-        source
+        line
       );
     }
 
     return createBaseEntry(
       this.service,
-      new Date(),
-      UnifiedLogLevel.INFO,
-      line,
+      this.lastTimestamp,
+      this.lastLevel,
+      line.replace(/\s+/g, ' ').trim(),
       line
     );
   }
@@ -197,22 +213,25 @@ export class GatewayParser implements ServiceLogParser {
   readonly service: LogServiceName = 'gateway';
   readonly serviceColor = SERVICE_COLORS.gateway;
 
-  parse(line: string): UnifiedLogEntry {
-    if (!line.startsWith('{')) {
-      return createBaseEntry(
-        this.service,
-        new Date(),
-        UnifiedLogLevel.INFO,
-        line,
-        line
-      );
-    }
+  private lastLevel: UnifiedLogLevel = UnifiedLogLevel.INFO;
+  private lastTimestamp: Date = new Date();
 
+  parse(line: string): UnifiedLogEntry {
+    if (line.startsWith('{')) {
+      const entry = this.parseJson(line);
+      this.lastLevel = entry.level;
+      this.lastTimestamp = entry.timestamp;
+      return entry;
+    }
+    return this.parseText(line);
+  }
+
+  private parseJson(line: string): UnifiedLogEntry {
     try {
       const data = JSON.parse(line);
       const timestamp = data.timestamp ? new Date(data.timestamp) : new Date();
       const level = normalizeLevel(data.level || 'info');
-      const message = this.buildMessage(data);
+      const message = this.buildJsonMessage(data);
       const metadata = this.extractMetadata(data);
 
       return createBaseEntry(
@@ -229,13 +248,41 @@ export class GatewayParser implements ServiceLogParser {
         this.service,
         new Date(),
         UnifiedLogLevel.INFO,
-        line,
+        line.replace(/\s+/g, ' ').trim(),
         line
       );
     }
   }
 
-  private buildMessage(data: Record<string, unknown>): string {
+  private parseText(line: string): UnifiedLogEntry {
+    const pythonPattern = /^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s+-\s+(\S+)\s+-\s+(\w+)\s+-\s+(.*)$/;
+    const match = line.match(pythonPattern);
+
+    if (match) {
+      const [, timeStr, _module, level, message] = match;
+      const timestamp = new Date(timeStr.replace(' ', 'T'));
+      const normalizedLevel = normalizeLevel(level);
+      this.lastLevel = normalizedLevel;
+      this.lastTimestamp = timestamp;
+      return createBaseEntry(
+        this.service,
+        timestamp,
+        normalizedLevel,
+        message.replace(/\s+/g, ' ').trim(),
+        line
+      );
+    }
+
+    return createBaseEntry(
+      this.service,
+      this.lastTimestamp,
+      this.lastLevel,
+      line.replace(/\s+/g, ' ').trim(),
+      line
+    );
+  }
+
+  private buildJsonMessage(data: Record<string, unknown>): string {
     const msg = (data.msg || data.message || '') as string;
     
     if (data.method && data.path) {
@@ -255,44 +302,69 @@ export class GatewayParser implements ServiceLogParser {
 export class FrontendParser implements ServiceLogParser {
   readonly service: LogServiceName = 'frontend';
   readonly serviceColor = SERVICE_COLORS.frontend;
-  
-  private pattern = /^\[([\d\-T:.Z]+)\]\s+\[(\w+)\]\s+\[(\w+)\]\s+(.*)$/;
+
+  private lastLevel: UnifiedLogLevel = UnifiedLogLevel.INFO;
+  private lastTimestamp: Date = new Date();
 
   parse(line: string): UnifiedLogEntry {
-    const match = line.match(this.pattern);
-    
+    const nextLogPattern = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}):\s+\[([^\]]+)\]\s+\[([^\]]+)\]\s+(.*)$/;
+    const match = line.match(nextLogPattern);
+
     if (match) {
-      const [, timeStr, level, source, message] = match;
+      const [, timeStr, _innerTime, _service, message] = match;
       const timestamp = new Date(timeStr);
+      const level = this.inferLevelFromMessage(message);
+      this.lastLevel = level;
+      this.lastTimestamp = timestamp;
       return createBaseEntry(
         this.service,
         timestamp,
-        normalizeLevel(level),
-        message,
-        line,
-        source
+        level,
+        message.replace(/\s+/g, ' ').trim(),
+        line
       );
     }
 
     return createBaseEntry(
       this.service,
-      new Date(),
-      UnifiedLogLevel.INFO,
-      line,
+      this.lastTimestamp,
+      this.lastLevel,
+      line.replace(/\s+/g, ' ').trim(),
       line
     );
+  }
+
+  private inferLevelFromMessage(message: string): UnifiedLogLevel {
+    const statusMatch = message.match(/\s(\d{3})\s/);
+    if (statusMatch) {
+      const status = parseInt(statusMatch[1], 10);
+      if (status >= 500) return UnifiedLogLevel.ERROR;
+      if (status >= 400) return UnifiedLogLevel.WARN;
+    }
+
+    if (message.toLowerCase().includes('error')) {
+      return UnifiedLogLevel.ERROR;
+    }
+    if (message.toLowerCase().includes('warn')) {
+      return UnifiedLogLevel.WARN;
+    }
+
+    return UnifiedLogLevel.INFO;
   }
 }
 
 export class NginxParser implements ServiceLogParser {
   readonly service: LogServiceName = 'nginx';
   readonly serviceColor = SERVICE_COLORS.nginx;
-  
+
+  private lastLevel: UnifiedLogLevel = UnifiedLogLevel.INFO;
+  private lastTimestamp: Date = new Date();
+
   private pattern = /^(\S+)\s+\S+\s+\S+\s+\[([^\]]+)\]\s+"(\S+)\s+(\S+)\s+[^"]+"\s+(\d+)\s+(\d+)/;
 
   parse(line: string): UnifiedLogEntry {
     const match = line.match(this.pattern);
-    
+
     if (match) {
       const [, ip, timeStr, method, path, status, size] = match;
       const timestamp = this.parseNginxTime(timeStr);
@@ -307,6 +379,9 @@ export class NginxParser implements ServiceLogParser {
         size: parseInt(size, 10),
       };
 
+      this.lastLevel = level;
+      this.lastTimestamp = timestamp;
+
       return createBaseEntry(
         this.service,
         timestamp,
@@ -320,11 +395,12 @@ export class NginxParser implements ServiceLogParser {
 
     return createBaseEntry(
       this.service,
-      new Date(),
-      UnifiedLogLevel.INFO,
+      this.lastTimestamp,
+      this.lastLevel,
       line,
       line
     );
+
   }
 
   private parseNginxTime(timeStr: string): Date {

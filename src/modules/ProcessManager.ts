@@ -53,33 +53,16 @@ export interface PM2ProcessConfig {
   name: string;
   /** 脚本路径 / Script path */
   script: string;
-  /** 脚本参数 / Script arguments */
   args?: string[];
-  /** 工作目录 / Working directory */
   cwd: string;
-  /** 解释器路径 / Interpreter path */
   interpreter?: string;
-  /** 执行模式: fork 或 cluster / Execution mode: fork or cluster */
   exec_mode?: string;
-  /** 实例数量 / Number of instances */
   instances?: number;
-  /** 是否自动重启 / Auto restart on failure */
   autorestart?: boolean;
-  /** 最大重启次数 / Maximum restart attempts */
   max_restarts?: number;
-  /** 最小运行时间 (ms) / Minimum uptime in milliseconds */
   min_uptime?: number;
-  /** 日志文件路径 / Log file path */
-  log_file?: string;
-  /** 标准输出文件 / Standard output file */
   out_file?: string;
-  /** 错误输出文件 / Error output file */
   error_file?: string;
-  /** 是否合并日志 / Merge logs */
-  merge_logs?: boolean;
-  /** 是否添加时间戳 / Add timestamps to logs */
-  time?: boolean;
-  /** 环境变量 / Environment variables */
   env?: Record<string, string>;
   windowsHide?: boolean;
   kill_timeout?: number;
@@ -301,7 +284,7 @@ export class ProcessManager {
     let script = service.script;
     let args = service.args || [];
     let interpreter: string | undefined;
-    
+
     if (isNodeScript) {
       interpreter = undefined;
     } else if (isWindows) {
@@ -311,9 +294,7 @@ export class ProcessManager {
     } else {
       interpreter = 'none';
     }
-    
-    const logFile = path.join(this.logDir, `${service.name}.log`);
-    
+
     const config: PM2ProcessConfig = {
       name: service.name,
       script: script,
@@ -325,11 +306,8 @@ export class ProcessManager {
       autorestart: false,
       max_restarts: 0,
       min_uptime: 10000,
-      log_file: logFile,
-      out_file: logFile,
-      error_file: logFile,
-      merge_logs: true,
-      time: true,
+      out_file: '/dev/null',
+      error_file: '/dev/null',
       env: { ...this.dotEnvVars, ...service.env },
       ...(isWindows && !isNodeScript ? {
         windowsHide: true,

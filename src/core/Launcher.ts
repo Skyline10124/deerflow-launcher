@@ -5,6 +5,7 @@ import { ConfigInitializer } from '../modules/ConfigInitializer.js';
 import { ProcessManager } from '../modules/ProcessManager.js';
 import { ProcessMonitor } from '../modules/ProcessMonitor.js';
 import { ConfigWatcher, ConfigChange } from '../modules/ConfigWatcher.js';
+import { LogWriter } from '../modules/LogWriter.js';
 import {
   LaunchContext,
   LaunchResult,
@@ -44,6 +45,7 @@ export class Launcher {
   private processManager: ProcessManager;
   private processMonitor: ProcessMonitor;
   private configWatcher: ConfigWatcher;
+  private logWriter: LogWriter;
   private context: LaunchContext;
   private isStopping: boolean = false;
   private isCleaningUp: boolean = false;
@@ -52,12 +54,12 @@ export class Launcher {
   constructor(options: LauncherOptions) {
     const logDir = options.logDir ?? path.join(process.cwd(), 'logs');
     this.instanceId = options.instanceId ?? 'default';
-    
+
     this.logger = getLogger('Launcher', {
       level: options.logLevel ?? LogLevel.INFO,
       logDir
     });
-    
+
     setDefaultLogger(this.logger);
 
     this.context = createLaunchContext(options.deerflowPath, logDir);
@@ -66,6 +68,7 @@ export class Launcher {
     this.processManager = new ProcessManager(logDir, options.deerflowPath, this.instanceId);
     this.processMonitor = new ProcessMonitor({}, this.instanceId);
     this.configWatcher = new ConfigWatcher(options.deerflowPath);
+    this.logWriter = new LogWriter({ logDir });
   }
 
   /**
@@ -145,9 +148,10 @@ export class Launcher {
   /** 第三阶段: 启动所有服务 */
   private async startServices(): Promise<void> {
     this.logger.info('=== Phase 3: Service Startup ===');
-    
+
     await this.processManager.connect();
-    
+    await this.logWriter.start();
+
     const serviceDefinitions = getServiceDefinitions(this.context.deerflowPath);
     
     for (const serviceName of SERVICE_START_ORDER) {
@@ -214,25 +218,27 @@ export class Launcher {
       return;
     }
     this.isCleaningUp = true;
-    
+
     this.logger.info('Starting cleanup...');
-    
+
     try {
       this.configWatcher.stop();
       this.processMonitor.stopMonitoring();
-      
+
       try {
         await this.processMonitor.disconnect();
       } catch {}
-      
+
       await this.processManager.stopAll(this.context.services);
       this.processManager.forceDisconnect();
+
+      await this.logWriter.stop();
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       this.logger.error(`Cleanup error: ${errorMsg}`);
       this.processManager.forceDisconnect();
     }
-    
+
     this.logger.info('Cleanup completed');
   }
 
