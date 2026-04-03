@@ -1,25 +1,42 @@
-import React, { createContext, useContext, useMemo } from 'react'
-import { Launcher } from '../../core/Launcher.js'
-import { ProcessManager } from '../../modules/ProcessManager.js'
-import { LogManager } from '../../modules/LogManager.js'
-import { ProcessMonitor } from '../../modules/ProcessMonitor.js'
+import React, { createContext, useContext, useMemo, useState, useCallback } from 'react';
+import { Launcher } from '../../core/Launcher.js';
+import { ProcessManager } from '../../modules/ProcessManager.js';
+import { LogManager } from '../../modules/LogManager.js';
+import { ProcessMonitor } from '../../modules/ProcessMonitor.js';
+import { getDeerflowPaths, PathConfig } from '../../modules/LauncherConfig.js';
 
-interface LauncherContextValue {
-  launcher: Launcher
-  processManager: ProcessManager
-  logManager: LogManager
-  processMonitor: ProcessMonitor
-  version: string
+export interface InstanceInfo {
+  name: string;
+  path: string;
+  description?: string;
+  isCurrent: boolean;
 }
 
-const LauncherContext = createContext<LauncherContextValue | null>(null)
+interface LauncherContextValue {
+  launcher: Launcher;
+  processManager: ProcessManager;
+  logManager: LogManager;
+  processMonitor: ProcessMonitor;
+  version: string;
+  instanceId: string;
+  instances: InstanceInfo[];
+  currentInstance: InstanceInfo | null;
+  showInstanceSelector: boolean;
+  setShowInstanceSelector: (show: boolean) => void;
+  requestInstanceSwitch: (instanceName: string) => void;
+}
+
+const LauncherContext = createContext<LauncherContextValue | null>(null);
 
 interface LauncherProviderProps {
-  launcher: Launcher
-  processManager: ProcessManager
-  logManager: LogManager
-  processMonitor: ProcessMonitor
-  children: React.ReactNode
+  launcher: Launcher;
+  processManager: ProcessManager;
+  logManager: LogManager;
+  processMonitor: ProcessMonitor;
+  instanceId: string;
+  version?: string;
+  onInstanceSwitch?: (instanceName: string) => void;
+  children: React.ReactNode;
 }
 
 export const LauncherProvider: React.FC<LauncherProviderProps> = ({
@@ -27,42 +44,97 @@ export const LauncherProvider: React.FC<LauncherProviderProps> = ({
   processManager,
   logManager,
   processMonitor,
+  instanceId,
+  version = '0.4.4-alpha',
+  onInstanceSwitch,
   children,
 }) => {
+  const [showInstanceSelector, setShowInstanceSelector] = useState(false);
+
+  const instances = useMemo<InstanceInfo[]>(() => {
+    const paths = getDeerflowPaths();
+    if (paths.length === 0) {
+      return [{
+        name: instanceId,
+        path: process.cwd(),
+        isCurrent: true,
+      }];
+    }
+    return paths.map(p => ({
+      name: p.name,
+      path: p.path,
+      description: p.description,
+      isCurrent: p.name === instanceId,
+    }));
+  }, [instanceId]);
+
+  const currentInstance = useMemo<InstanceInfo | null>(() => {
+    return instances.find(i => i.isCurrent) || instances[0] || null;
+  }, [instances]);
+
+  const requestInstanceSwitch = useCallback((instanceName: string) => {
+    if (instanceName !== instanceId && onInstanceSwitch) {
+      onInstanceSwitch(instanceName);
+    }
+    setShowInstanceSelector(false);
+  }, [instanceId, onInstanceSwitch]);
+
   const value = useMemo<LauncherContextValue>(() => ({
     launcher,
     processManager,
     logManager,
     processMonitor,
-    version: '0.4.2-alpha',
-  }), [launcher, processManager, logManager, processMonitor])
+    version,
+    instanceId,
+    instances,
+    currentInstance,
+    showInstanceSelector,
+    setShowInstanceSelector,
+    requestInstanceSwitch,
+  }), [
+    launcher,
+    processManager,
+    logManager,
+    processMonitor,
+    version,
+    instanceId,
+    instances,
+    currentInstance,
+    showInstanceSelector,
+    requestInstanceSwitch,
+  ]);
 
   return (
     <LauncherContext.Provider value={value}>
       {children}
     </LauncherContext.Provider>
-  )
-}
+  );
+};
 
 export const useLauncher = (): LauncherContextValue => {
-  const context = useContext(LauncherContext)
+  const context = useContext(LauncherContext);
   if (!context) {
-    throw new Error('useLauncher must be used within LauncherProvider')
+    throw new Error('useLauncher must be used within LauncherProvider');
   }
-  return context
-}
+  return context;
+};
 
 export const useProcessManager = (): ProcessManager => {
-  const { processManager } = useLauncher()
-  return processManager
-}
+  const { processManager } = useLauncher();
+  return processManager;
+};
 
 export const useLogManager = (): LogManager => {
-  const { logManager } = useLauncher()
-  return logManager
-}
+  const { logManager } = useLauncher();
+  return logManager;
+};
 
 export const useProcessMonitor = (): ProcessMonitor => {
-  const { processMonitor } = useLauncher()
-  return processMonitor
-}
+  const { processMonitor } = useLauncher();
+  return processMonitor;
+};
+
+export const useInstances = () => {
+  const { instances, currentInstance, instanceId, showInstanceSelector, setShowInstanceSelector, requestInstanceSwitch } = useLauncher();
+  return { instances, currentInstance, instanceId, showInstanceSelector, setShowInstanceSelector, requestInstanceSwitch };
+};

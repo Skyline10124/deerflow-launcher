@@ -16,6 +16,7 @@ export const ICONS = {
   LOG: '📋',
   TERMINAL: '🖥️',
   PM2: '⚡',
+  FOLDER: '📁',
 } as const;
 
 export function getStatusIcon(status: ServiceStatus): string {

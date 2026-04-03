@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Box, Text, useInput, useApp } from 'ink';
-import { StatusBar, ServiceGrid, LogPanel, CommandInput } from '../components/index.js';
-import { useLauncher } from '../context/LauncherContext.js';
+import { StatusBar, ServiceGrid, LogPanel, CommandInput, InstanceSelector } from '../components/index.js';
+import { useLauncher, useInstances } from '../context/LauncherContext.js';
 import { useLogStream, useTerminalSize } from '../hooks/index.js';
 import { Service, ServiceStatus, LogEntry, LogLevel, NavigationState } from '../types/index.js';
 import { ServiceName } from '../../types/index.js';
@@ -53,6 +53,7 @@ function mapLogLevel(level: string): LogLevel {
 
 export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
   const { version, processManager, processMonitor, logManager } = useLauncher();
+  const { instances, currentInstance, showInstanceSelector, setShowInstanceSelector, requestInstanceSwitch } = useInstances();
   const { exit } = useApp();
   const terminalSize = useTerminalSize();
 
@@ -257,6 +258,18 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
           }
           break;
 
+        case 'instance':
+        case 'inst':
+          if (args[0]) {
+            requestInstanceSwitch(args[0]);
+          } else {
+            setShowInstanceSelector(true);
+          }
+          break;
+
+        case 'help':
+          break;
+
         default:
           break;
       }
@@ -267,11 +280,18 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
         commandHistory: [...prev.commandHistory, cmd],
       }));
     },
-    [handleServiceAction, handleExit]
+    [handleServiceAction, handleExit, requestInstanceSwitch, setShowInstanceSelector]
   );
 
   useInput((input, key) => {
     if (isExiting) return;
+
+    if (showInstanceSelector) {
+      if (key.escape) {
+        setShowInstanceSelector(false);
+      }
+      return;
+    }
 
     if (nav.mode === 'command') {
       if (key.escape) {
@@ -289,6 +309,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
         ...prev,
         mode: prev.mode === 'grid' ? 'logs' : 'grid',
       }));
+    } else if (input === 'i' && instances.length > 1) {
+      setShowInstanceSelector(true);
     } else if (key.tab && !key.shift) {
       setNav(prev => ({
         ...prev,
@@ -307,6 +329,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
           terminalSize={terminalSize}
           version={version}
           mode="grid"
+          currentInstance={currentInstance}
+          instanceCount={instances.length}
         />
         <Box flexGrow={1} alignItems="center" justifyContent="center">
           <Text dimColor>Loading service status...</Text>
@@ -322,6 +346,8 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
         terminalSize={terminalSize}
         version={version}
         mode={nav.mode}
+        currentInstance={currentInstance}
+        instanceCount={instances.length}
       />
 
       <Box flexGrow={1} flexDirection="column" paddingTop={1} paddingX={1}>
@@ -358,6 +384,21 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
             onSubmit={handleCommand}
             history={nav.commandHistory}
             isActive={nav.mode === 'command'}
+          />
+        </Box>
+      )}
+
+      {showInstanceSelector && (
+        <Box
+          width="100%"
+          flexDirection="column"
+          alignItems="center"
+        >
+          <InstanceSelector
+            instances={instances}
+            currentInstance={currentInstance}
+            onSelect={requestInstanceSwitch}
+            onClose={() => setShowInstanceSelector(false)}
           />
         </Box>
       )}

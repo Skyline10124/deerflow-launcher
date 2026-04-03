@@ -3,6 +3,7 @@ import { Box, Text } from 'ink';
 import { Service, ServiceStatus } from '../types/index.js';
 import { THEME } from '../constants.js';
 import { ICONS } from '../utils/icons.js';
+import { InstanceInfo } from '../context/LauncherContext.js';
 
 interface StatusBarProps {
   services: Service[];
@@ -10,6 +11,8 @@ interface StatusBarProps {
   pm2Version?: string;
   version: string;
   mode: 'grid' | 'logs' | 'command';
+  currentInstance?: InstanceInfo | null;
+  instanceCount?: number;
 }
 
 export const StatusBar: React.FC<StatusBarProps> = ({
@@ -18,6 +21,8 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   pm2Version = 'v5.3.0',
   version,
   mode,
+  currentInstance,
+  instanceCount = 1,
 }) => {
   const onlineCount = services.filter(s => s.status === ServiceStatus.ONLINE).length;
 
@@ -34,6 +39,15 @@ export const StatusBar: React.FC<StatusBarProps> = ({
           <Text color={THEME.colors.online}>●</Text>
           <Text color={THEME.colors.textSecondary}> {onlineCount}/{services.length} 运行中</Text>
         </Box>
+        {currentInstance && (
+          <Box>
+            <Text color={THEME.colors.accent}>{ICONS.FOLDER}</Text>
+            <Text color={THEME.colors.textSecondary}> {currentInstance.name}</Text>
+            {instanceCount > 1 && (
+              <Text color={THEME.colors.textMuted}> ({instanceCount} instances)</Text>
+            )}
+          </Box>
+        )}
         <Box>
           <Text color={THEME.colors.textMuted}>{ICONS.TERMINAL} {terminalSize.width}×{terminalSize.height}</Text>
         </Box>
@@ -45,6 +59,7 @@ export const StatusBar: React.FC<StatusBarProps> = ({
       <Box flexGrow={1} />
 
       <Box gap={2}>
+        {instanceCount > 1 && <Shortcut keys={['i']} label="切换实例" />}
         <Shortcut keys={['←', '→']} label="导航" />
         <Shortcut keys={['s']} label="启动/停止" />
         <Shortcut keys={['r']} label="重启" />

@@ -5,6 +5,41 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)，
 本项目遵循 [语义化版本](https://semver.org/spec/v2.0.0.html)。
 
+## \[0.4.4-alpha] - 2026-04-03
+
+### 新增
+
+- **TUI Dashboard 重构**：根据设计规范重新开发终端界面
+  - 新布局：状态栏 + 2x2 服务网格 + 日志面板 + 命令输入
+  - 服务卡片：状态指示、描述、运行时长、PID/CPU/Mem
+  - 日志面板：服务标签栏、级别过滤、Tab 切换
+  - 命令模式：`:` 进入命令模式，支持 `start`/`stop`/`restart`/`help`/`quit`
+  - 键盘导航：`←→↑↓` 导航、`s` 启停、`r` 重启、`1-5` 切换日志、`f` 过滤级别
+  - 主题系统：GitHub Dark 风格配色
+- **多实例管理**：支持同时运行多个独立的 DeerFlow 实例
+  - 每个实例拥有独立的 PM2 守护进程和服务进程
+  - 实例隔离：独立的 `PM2_HOME` 目录 (`~/.deerflow/pm2-instances/{instance-id}`)
+  - 实例状态追踪：运行状态、服务列表、最后活跃时间
+  - Dashboard 支持多实例：`deerflow-launcher dashboard -p dev`
+- **clean 命令**：在 `service` 级别添加清理 PM2 进程功能
+  - `service clean` - 停止所有进程并终止 PM2 守护进程
+  - `service clean --logs` - 同时清理日志文件
+  - `service clean --all` - 完全清理（包括实例目录）
+
+### 变更
+
+- **PM2 架构统一**：所有 PM2 操作统一通过 `PM2Runtime` 管理
+  - `ProcessManager` 和 `ProcessMonitor` 使用 `PM2Runtime` 连接
+  - 支持实例隔离的 `instanceId` 参数
+- **类型定义重构**：TUI 类型系统优化
+  - 新增 `Theme`、`NavigationState`、`DashboardState`、`LogService` 接口
+  - `Service` 接口增加 `id`、`description`、`pid`、`cpu`、`memory`、`uptime` 字段
+  - `LogLevel` 改为枚举类型
+
+### 移除
+
+- `demo` 命令：移除 `deerflow-launcher demo` 测试命令
+
 ## \[0.4.3-alpha] - 2026-04-03
 
 ### 新增
