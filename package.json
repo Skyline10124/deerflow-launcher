@@ -20,9 +20,10 @@
     "test:unit": "jest --testPathPattern=tests/unit",
     "test:integration": "jest --testPathPattern=tests/integration",
     "build:pkg": "node scripts/build-pkg.js",
-    "build:win": "npm run build:pkg",
-    "build:linux": "npm run build:pkg",
-    "build:mac": "npm run build:pkg",
+    "build:win": "node scripts/build-pkg.js win",
+    "build:linux": "node scripts/build-pkg.js linux",
+    "build:mac": "node scripts/build-pkg.js macos",
+    "build:all": "node scripts/build-pkg.js",
     "tui:demo": "tsx src/tui/demo.tsx"
   },
   "keywords": [
@@ -80,9 +81,33 @@
       "scripts/**/*",
       "node_modules/react/**/*",
       "node_modules/react-dom/**/*",
+      "node_modules/react-reconciler/**/*",
+      "node_modules/scheduler/**/*",
       "node_modules/ink/**/*",
       "node_modules/ink-spinner/**/*",
       "node_modules/ink-text-input/**/*",
+      "node_modules/yoga-layout/**/*",
+      "node_modules/yoga-layout-prebuilt/**/*",
+      "node_modules/chalk/**/*",
+      "node_modules/ansi-styles/**/*",
+      "node_modules/supports-color/**/*",
+      "node_modules/prop-types/**/*",
+      "node_modules/arrify/**/*",
+      "node_modules/lodash.throttle/**/*",
+      "node_modules/log-update/**/*",
+      "node_modules/is-ci/**/*",
+      "node_modules/cli-boxes/**/*",
+      "node_modules/ansi-escapes/**/*",
+      "node_modules/cli-cursor/**/*",
+      "node_modules/restore-cursor/**/*",
+      "node_modules/onetime/**/*",
+      "node_modules/signal-exit/**/*",
+      "node_modules/strip-ansi/**/*",
+      "node_modules/ansi-regex/**/*",
+      "node_modules/string-width/**/*",
+      "node_modules/emoji-regex/**/*",
+      "node_modules/is-fullwidth-code-point/**/*",
+      "node_modules/wrap-ansi/**/*",
       "node_modules/pm2/**/*",
       "node_modules/@pm2/**/*",
       "node_modules/pm2-axon/**/*",
@@ -92,7 +117,10 @@
       "node_modules/axon/**/*"
     ],
     "scripts": [
-      "dist/src/**/*.js"
+      "dist/src/**/*.js",
+      "node_modules/ink/build/**/*.js",
+      "node_modules/yoga-layout/dist/**/*.js",
+      "node_modules/chalk/source/**/*.js"
     ]
   }
 }

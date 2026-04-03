@@ -36,6 +36,19 @@ async function main() {
       logLevel: LogLevel.INFO,
     })
     
+    const cleanup = async () => {
+      logger.info('Closing dashboard...')
+      if (!noMonitor) {
+        processMonitor.stopMonitoring()
+        try {
+          await processMonitor.disconnect()
+        } catch {}
+      }
+      try {
+        await processManager.disconnect()
+      } catch {}
+    }
+    
     const App = () => (
       <LauncherProvider
         launcher={launcher}
@@ -43,18 +56,7 @@ async function main() {
         logManager={logManager}
         processMonitor={processMonitor}
       >
-        <DashboardScreen
-          onExit={async () => {
-            logger.info('Exiting dashboard...')
-            if (!noMonitor) {
-              processMonitor.stopMonitoring()
-              await processMonitor.disconnect()
-            }
-            await processManager.stopAll(new Map())
-            processManager.forceDisconnect()
-            process.exit(0)
-          }}
-        />
+        <DashboardScreen onExit={cleanup} />
       </LauncherProvider>
     )
     
@@ -62,12 +64,13 @@ async function main() {
     
     process.on('SIGINT', async () => {
       unmount()
-      if (!noMonitor) {
-        processMonitor.stopMonitoring()
-        await processMonitor.disconnect()
-      }
-      await processManager.stopAll(new Map())
-      processManager.forceDisconnect()
+      await cleanup()
+      process.exit(0)
+    })
+    
+    process.on('SIGTERM', async () => {
+      unmount()
+      await cleanup()
       process.exit(0)
     })
     
