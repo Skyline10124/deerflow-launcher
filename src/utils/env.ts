@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { getLogger } from '../modules/Logger.js';
-import { getDefaultPath, getPath } from '../modules/LauncherConfig.js';
+import { getDefaultDeerflowPath, getDeerflowPath as getConfigPath } from '../modules/LauncherConfig.js';
 
 const logger = getLogger('Env');
 
@@ -126,7 +126,7 @@ export function getDeerFlowPath(options?: GetDeerFlowPathOptions): string {
   }
 
   if (!deerflowPath && options?.usePath) {
-    const namedPath = getPath(options.usePath);
+    const namedPath = getConfigPath(options.usePath);
     if (namedPath && validatePath(namedPath.path)) {
       deerflowPath = namedPath.path;
       logger.debug(`Using named path "${namedPath.name}": ${deerflowPath}`);
@@ -138,7 +138,7 @@ export function getDeerFlowPath(options?: GetDeerFlowPathOptions): string {
   }
 
   if (!deerflowPath) {
-    const configPath = getDefaultPath();
+    const configPath = getDefaultDeerflowPath();
     if (configPath && validatePath(configPath.path)) {
       deerflowPath = configPath.path;
       logger.debug(`Using default config path "${configPath.name}": ${deerflowPath}`);

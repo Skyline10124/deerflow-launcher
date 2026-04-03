@@ -12,12 +12,12 @@ export interface PathConfig {
 }
 
 export interface LauncherConfigData {
-  paths: PathConfig[];
+  deerflowPaths: PathConfig[];
   defaultPath: string | null;
 }
 
 const DEFAULT_CONFIG: LauncherConfigData = {
-  paths: [],
+  deerflowPaths: [],
   defaultPath: null,
 };
 
@@ -45,10 +45,21 @@ export function loadConfig(): LauncherConfigData {
   
   try {
     const content = fs.readFileSync(configPath, 'utf-8');
-    const config = JSON.parse(content) as LauncherConfigData;
+    const rawConfig = JSON.parse(content) as Record<string, unknown>;
     
-    if (!Array.isArray(config.paths)) {
-      config.paths = [];
+    const config: LauncherConfigData = {
+      deerflowPaths: [],
+      defaultPath: null,
+    };
+    
+    if (Array.isArray(rawConfig.deerflowPaths)) {
+      config.deerflowPaths = rawConfig.deerflowPaths as PathConfig[];
+    } else if (Array.isArray(rawConfig.paths)) {
+      config.deerflowPaths = rawConfig.paths as PathConfig[];
+    }
+    
+    if (typeof rawConfig.defaultPath === 'string') {
+      config.defaultPath = rawConfig.defaultPath;
     }
     
     return config;
@@ -63,8 +74,13 @@ export function saveConfig(config: LauncherConfigData): void {
   ensureConfigDir();
   const configPath = getConfigFilePath();
   
+  const cleanConfig: LauncherConfigData = {
+    deerflowPaths: config.deerflowPaths,
+    defaultPath: config.defaultPath,
+  };
+  
   try {
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+    fs.writeFileSync(configPath, JSON.stringify(cleanConfig, null, 2), 'utf-8');
     logger.debug(`Config saved to ${configPath}`);
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -73,40 +89,62 @@ export function saveConfig(config: LauncherConfigData): void {
   }
 }
 
-export function addPath(name: string, deerflowPath: string, description?: string): PathConfig {
+export function getDeerflowPaths(): PathConfig[] {
+  const config = loadConfig();
+  return config.deerflowPaths;
+}
+
+export function getDeerflowPath(name: string): PathConfig | undefined {
+  const config = loadConfig();
+  return config.deerflowPaths.find(p => p.name === name);
+}
+
+export function getDefaultDeerflowPath(): PathConfig | undefined {
+  const config = loadConfig();
+  if (!config.defaultPath) {
+    return config.deerflowPaths[0];
+  }
+  return config.deerflowPaths.find(p => p.name === config.defaultPath);
+}
+
+export function setDeerflowPath(name: string, deerflowPath: string, description?: string): PathConfig {
   const config = loadConfig();
   
-  const existing = config.paths.find(p => p.name === name);
+  const existing = config.deerflowPaths.find(p => p.name === name);
   if (existing) {
     existing.path = deerflowPath;
-    if (description) {
+    if (description !== undefined) {
       existing.description = description;
     }
   } else {
-    config.paths.push({ name, path: deerflowPath, description });
+    config.deerflowPaths.push({ name, path: deerflowPath, description });
   }
   
-  if (!config.defaultPath && config.paths.length === 1) {
+  if (!config.defaultPath && config.deerflowPaths.length === 1) {
     config.defaultPath = name;
   }
   
   saveConfig(config);
   
-  return config.paths.find(p => p.name === name)!;
+  const added = config.deerflowPaths.find(p => p.name === name);
+  if (!added) {
+    throw new Error(`Failed to add path "${name}"`);
+  }
+  return added;
 }
 
-export function removePath(name: string): boolean {
+export function removeDeerflowPath(name: string): boolean {
   const config = loadConfig();
-  const index = config.paths.findIndex(p => p.name === name);
+  const index = config.deerflowPaths.findIndex(p => p.name === name);
   
   if (index === -1) {
     return false;
   }
   
-  config.paths.splice(index, 1);
+  config.deerflowPaths.splice(index, 1);
   
   if (config.defaultPath === name) {
-    config.defaultPath = config.paths.length > 0 ? config.paths[0].name : null;
+    config.defaultPath = config.deerflowPaths.length > 0 ? config.deerflowPaths[0].name : null;
   }
   
   saveConfig(config);
@@ -116,7 +154,7 @@ export function removePath(name: string): boolean {
 export function setDefaultPath(name: string): boolean {
   const config = loadConfig();
   
-  const exists = config.paths.some(p => p.name === name);
+  const exists = config.deerflowPaths.some(p => p.name === name);
   if (!exists) {
     return false;
   }
@@ -126,22 +164,9 @@ export function setDefaultPath(name: string): boolean {
   return true;
 }
 
-export function getPath(name: string): PathConfig | undefined {
+export function getDefaultPath(): string | null {
   const config = loadConfig();
-  return config.paths.find(p => p.name === name);
-}
-
-export function getDefaultPath(): PathConfig | undefined {
-  const config = loadConfig();
-  if (!config.defaultPath) {
-    return config.paths[0];
-  }
-  return config.paths.find(p => p.name === config.defaultPath);
-}
-
-export function listPaths(): PathConfig[] {
-  const config = loadConfig();
-  return config.paths;
+  return config.defaultPath;
 }
 
 export function clearConfig(): void {
@@ -149,4 +174,8 @@ export function clearConfig(): void {
   if (fs.existsSync(configPath)) {
     fs.unlinkSync(configPath);
   }
+}
+
+export function getConfigPath(): string {
+  return getConfigFilePath();
 }

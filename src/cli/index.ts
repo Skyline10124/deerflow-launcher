@@ -119,10 +119,10 @@ class ConfigServiceAdapter implements IConfigService {
     }
   }
 
-  async set(_key: string, _value: unknown): Promise<void> {
+  async set(key: string, _value: unknown): Promise<void> {
     throw new CLIError(
       ErrorCode.CONFIG_PARSE_ERROR,
-      'Configuration modification not supported in CLI mode'
+      `Use "config set ${key}" command to modify configuration`
     );
   }
 

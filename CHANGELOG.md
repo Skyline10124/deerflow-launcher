@@ -5,6 +5,39 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)，
 本项目遵循 [语义化版本](https://semver.org/spec/v2.0.0.html)。
 
+## \[0.4.3-alpha] - 2026-04-03
+
+### 新增
+
+- **多路径配置系统**：支持配置多个 DeerFlow 项目路径
+  - 路径优先级：CLI 参数 > 命名路径 > 默认路径 > 环境变量 > 自动查找
+  - 全局选项：`-d, --deerflow-path <path>` 和 `-p, --use-path <name>`
+- **配置命令重构**：将 `config path` 子命令提升到 `config set` 级别
+  - `config get deerflowPath` - 获取当前使用的路径
+  - `config get deerflowPaths` - 列出所有配置的路径
+  - `config set deerflowPath <name> <path> [desc]` - 添加/更新路径
+  - `config set defaultPath <name>` - 设置默认路径
+  - `config unset deerflowPath <name>` - 删除路径
+  - `config list` - 列出所有配置
+  - `config validate` - 验证配置
+- **Dashboard Phase 2**：连接真实服务数据
+  - `LauncherContext` - 全局状态管理
+  - `StatusBar` - 状态栏组件
+  - `DashboardScreen` - 使用 `ProcessMonitor` 和 `LogManager` 获取真实数据
+
+### 变更
+
+- **配置文件格式**：`paths` 字段重命名为 `deerflowPaths`
+  - 旧配置文件自动迁移兼容
+- **构建脚本**：支持指定平台构建
+  - `build:win` 仅构建 Windows
+  - `build:linux` 仅构建 Linux
+  - `build:mac` 仅构建 macOS
+
+### 修复
+
+- Dashboard 退出时不再停止后台服务
+
 ## \[0.4.2-alpha] - 2026-04-03
 
 ### 新增
@@ -13,19 +46,16 @@
   - 安装 React + Ink 依赖 (`react@18.3.1`, `ink@5`, `ink-spinner@5.0.0`, `ink-text-input@6.0.0`)
   - 创建 `src/tui/` 目录结构
   - 添加测试依赖 (`jest`, `@testing-library/react@14`, `ink-testing-library`)
-
 - **TUI 组件库**：
   - `ServiceCard` - 服务状态卡片组件
   - `ServiceGrid` - 服务网格布局组件
   - `LogPanel` - 日志面板组件
   - `CommandInput` - 命令输入组件
-
 - **TUI Hooks**：
   - `useServiceStatus` - 服务状态订阅 Hook
   - `useLogStream` - 日志流管理 Hook
   - `useKeyboard` - 键盘事件处理 Hook
   - `useTerminalSize` - 终端尺寸监听 Hook
-
 - **工具函数**：
   - `colors.ts` - 状态颜色常量
   - `icons.ts` - 状态图标常量
@@ -36,7 +66,6 @@
 - **TypeScript 配置**：更新 `module` 和 `moduleResolution` 为 `NodeNext`
   - 支持现代 ES Module 库（如 `ink`）的类型解析
   - 保持 CommonJS 输出兼容性
-
 - **pkg 打包配置**：添加 React/Ink 相关资源到打包配置
 
 ### 依赖变更

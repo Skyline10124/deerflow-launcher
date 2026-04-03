@@ -78,8 +78,11 @@ deerflow-launcher logs --follow            # 实时跟踪日志
 deerflow-launcher doctor                   # 检查环境依赖
 
 # 配置管理
+deerflow-launcher config list              # 列出所有配置
+deerflow-launcher config get <key>         # 获取配置值
+deerflow-launcher config set <key> <value> # 设置配置值
 deerflow-launcher config init              # 初始化配置文件
-deerflow-launcher config show              # 显示当前配置
+deerflow-launcher config validate          # 验证配置
 
 # 清理
 deerflow-launcher clean                    # 清理 PM2 实例
@@ -91,7 +94,7 @@ Launcher 支持多种方式指定 DeerFlow 项目路径，按优先级排序：
 
 1. **命令行参数** `--deerflow-path <path>`
 2. **命名路径** `--use-path <name>` (使用配置的命名路径)
-3. **配置文件默认路径** (通过 `config path default` 设置)
+3. **配置文件默认路径** (通过 `config set defaultPath` 设置)
 4. **环境变量** `DEERFLOW_PATH`
 5. **自动查找** (从当前目录向上查找包含 `config.example.yaml` 的目录)
 
@@ -109,18 +112,21 @@ deerflow-launcher --deerflow-path /path/to/deer-flow start
 
 ```bash
 # 添加路径配置
-deerflow-launcher config path add dev /path/to/deer-flow-dev --default
-deerflow-launcher config path add prod /path/to/deer-flow-prod
+deerflow-launcher config set deerflowPath dev /path/to/deer-flow-dev "Development environment"
+deerflow-launcher config set deerflowPath prod /path/to/deer-flow-prod "Production environment"
+
+# 设置默认路径
+deerflow-launcher config set defaultPath dev
 
 # 使用命名路径
 deerflow-launcher -p dev start    # 使用 dev 路径
 deerflow-launcher -p prod start   # 使用 prod 路径
 
 # 查看所有配置的路径
-deerflow-launcher config path list
+deerflow-launcher config get deerflowPaths
 
-# 设置默认路径
-deerflow-launcher config path default dev
+# 查看当前路径
+deerflow-launcher config get deerflowPath
 ```
 
 #### 方式三：环境变量
@@ -133,25 +139,29 @@ export DEERFLOW_PATH=/path/to/deer-flow
 $env:DEERFLOW_PATH = "C:\path\to\deer-flow"
 ```
 
-#### 路径配置命令
+#### 配置命令
 
 ```bash
-# 添加路径
-deerflow-launcher config path add <name> <path> [options]
-  --default      设为默认路径
-  -d, --description <desc>  路径描述
+# 获取配置值
+deerflow-launcher config get <key>
+  deerflowPath, currentPath  - 当前使用的路径
+  deerflowPaths, paths       - 所有配置的路径
+  defaultPath                - 默认路径名称
+  logDir                     - 日志目录
+  services                   - 服务启动顺序
 
-# 列出所有路径
-deerflow-launcher config path list
+# 设置配置值
+deerflow-launcher config set deerflowPath <name> <path> [description]
+deerflow-launcher config set defaultPath <name>
 
-# 设置默认路径
-deerflow-launcher config path default <name>
+# 删除配置
+deerflow-launcher config unset deerflowPath <name>
 
-# 显示路径详情
-deerflow-launcher config path show [name]
+# 列出所有配置
+deerflow-launcher config list
 
-# 删除路径
-deerflow-launcher config path remove <name>
+# 验证配置
+deerflow-launcher config validate
 ```
 
 #### 配置文件位置
@@ -160,7 +170,7 @@ deerflow-launcher config path remove <name>
 
 ```json
 {
-  "paths": [
+  "deerflowPaths": [
     { "name": "dev", "path": "/path/to/deer-flow-dev", "description": "开发环境" },
     { "name": "prod", "path": "/path/to/deer-flow-prod", "description": "生产环境" }
   ],

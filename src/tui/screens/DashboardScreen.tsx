@@ -81,6 +81,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [showCommandInput, setShowCommandInput] = useState(false)
   const [helpText, setHelpText] = useState('q:Quit | j/k:Nav | s:Start | x:Stop | r:Restart | :Command')
+  const [isExiting, setIsExiting] = useState(false)
   
   const [services, setServices] = useState<ServiceInfo[]>([])
   const [loading, setLoading] = useState(true)
@@ -206,6 +207,18 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
     }
   }, [processManager])
   
+  const handleExit = useCallback(async () => {
+    if (isExiting) return
+    setIsExiting(true)
+    setHelpText('Exiting...')
+    
+    if (onExit) {
+      await onExit()
+    }
+    
+    exit()
+  }, [isExiting, onExit, exit])
+  
   const handleCommand = useCallback(async (cmd: string) => {
     const parts = cmd.trim().split(/\s+/)
     const command = parts[0]?.toLowerCase()
@@ -215,11 +228,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
       case 'q':
       case 'quit':
       case 'exit':
-        if (onExit) {
-          onExit()
-        } else {
-          exit()
-        }
+        await handleExit()
         break
         
       case 'start':
@@ -272,20 +281,16 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
     
     setShowCommandInput(false)
     setMode('normal')
-  }, [handleServiceAction, onExit, exit])
+  }, [handleServiceAction, handleExit])
   
   useInput((input, key) => {
-    if (showCommandInput) {
+    if (showCommandInput || isExiting) {
       return
     }
     
     if (mode === 'normal') {
       if (input === 'q') {
-        if (onExit) {
-          onExit()
-        } else {
-          exit()
-        }
+        handleExit()
       } else if (input === 'j' || key.downArrow) {
         setSelectedIndex(prev => Math.min(prev + 1, SERVICE_NAMES.length - 1))
       } else if (input === 'k' || key.upArrow) {
