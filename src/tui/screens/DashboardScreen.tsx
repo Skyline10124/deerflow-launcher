@@ -13,6 +13,8 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
+const MIN_WIDTH_FOR_HORIZONTAL = 130;
+
 async function getPM2Version(): Promise<string> {
   try {
     const { stdout } = await execAsync('pm2 --version');
@@ -25,6 +27,8 @@ async function getPM2Version(): Promise<string> {
 interface DashboardScreenProps {
   onExit?: () => void;
 }
+
+type LayoutMode = 'horizontal' | 'vertical';
 
 const SERVICE_NAMES: ServiceName[] = [ServiceName.LANGGRAPH, ServiceName.GATEWAY, ServiceName.FRONTEND, ServiceName.NGINX];
 
@@ -85,6 +89,10 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
   });
 
   const logStreamResult = useLogStream({ maxLogs: 100 });
+
+  const layoutMode: LayoutMode = useMemo(() => {
+    return terminalSize.width >= MIN_WIDTH_FOR_HORIZONTAL ? 'horizontal' : 'vertical';
+  }, [terminalSize.width]);
 
   useEffect(() => {
     getPM2Version().then(setPM2Version);
@@ -149,7 +157,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
         const unsubscribe = logManager.follow(serviceName, entry => {
           const logEntry: LogEntry = {
             id: `${Date.now()}-${Math.random()}`,
-            serviceId: entry.module,
+            serviceId: serviceName,
             timestamp: new Date(entry.timestamp),
             level: mapLogLevel(entry.level),
             message: entry.message,
@@ -239,11 +247,11 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
   const executeCLICommand = useCallback(async (cmd: string) => {
     return new Promise<void>((resolve) => {
       const fullCmd = cmd.trim();
-      const args = fullCmd.split(/\s+/);
+      const parts = fullCmd.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
+      const args = parts.map(p => p.replace(/^"|"$/g, ''));
       
       const child = spawn('deerflow-launcher', args, {
         stdio: 'inherit',
-        shell: true,
         env: {
           ...process.env,
           DEERFLOW_PATH: process.env.DEERFLOW_PATH,
@@ -385,8 +393,6 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
     }
   });
 
-  const logPanelHeight = Math.max(8, Math.floor((terminalSize.height - 16) / 2));
-
   if (loading) {
     return (
       <Box flexDirection="column" width="100%" height={terminalSize.height}>
@@ -406,6 +412,78 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
     );
   }
 
+  const renderMainContent = () => {
+    if (layoutMode === 'horizontal') {
+      const servicePanelWidth = Math.min(70, Math.floor(terminalSize.width * 0.4));
+      const logHeight = Math.max(8, terminalSize.height - 12);
+
+      return (
+        <Box flexGrow={0} flexDirection="row" paddingX={1}>
+          <Box
+            width={servicePanelWidth}
+            flexDirection="column"
+            marginRight={1}
+          >
+            <ServiceGrid
+              services={services}
+              selectedIndex={nav.selectedServiceIndex}
+              isFocused={nav.mode === 'grid'}
+              onNavigate={handleServiceNavigate}
+              onServiceAction={handleServiceAction}
+            />
+          </Box>
+
+          <Box
+            flexGrow={1}
+            flexDirection="column"
+            height={logHeight}
+          >
+            <LogPanel
+              logs={logStreamResult.logs}
+              activeTabIndex={nav.selectedLogTabIndex}
+              levelFilter={levelFilter}
+              isFocused={nav.mode === 'logs'}
+              onTabChange={index => setNav(prev => ({ ...prev, selectedLogTabIndex: index }))}
+              onLevelFilterChange={setLevelFilter}
+              height={logHeight}
+            />
+          </Box>
+        </Box>
+      );
+    } else {
+      const statusBarHeight = 3;
+      const commandInputHeight = 3;
+      const serviceGridHeight = 11;
+      const logHeight = Math.max(6, terminalSize.height - statusBarHeight - serviceGridHeight - commandInputHeight - 2);
+
+      return (
+        <Box flexDirection="column">
+          <Box paddingX={1} height={serviceGridHeight}>
+            <ServiceGrid
+              services={services}
+              selectedIndex={nav.selectedServiceIndex}
+              isFocused={nav.mode === 'grid'}
+              onNavigate={handleServiceNavigate}
+              onServiceAction={handleServiceAction}
+            />
+          </Box>
+
+          <Box paddingX={1} marginTop={1}>
+            <LogPanel
+              logs={logStreamResult.logs}
+              activeTabIndex={nav.selectedLogTabIndex}
+              levelFilter={levelFilter}
+              isFocused={nav.mode === 'logs'}
+              onTabChange={index => setNav(prev => ({ ...prev, selectedLogTabIndex: index }))}
+              onLevelFilterChange={setLevelFilter}
+              height={logHeight}
+            />
+          </Box>
+        </Box>
+      );
+    }
+  };
+
   return (
     <Box flexDirection="column" width="100%" height={terminalSize.height}>
       <StatusBar
@@ -418,43 +496,15 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
         instanceCount={instances.length}
       />
 
-      <Box flexGrow={1} flexDirection="column" paddingTop={1} paddingX={1}>
-        <Box marginBottom={1}>
-          <Text bold color={THEME.colors.textPrimary}>
-            Services
-          </Text>
-        </Box>
+      {renderMainContent()}
 
-        <ServiceGrid
-          services={services}
-          selectedIndex={nav.selectedServiceIndex}
-          isFocused={nav.mode === 'grid'}
-          onNavigate={handleServiceNavigate}
-          onServiceAction={handleServiceAction}
+      <Box paddingX={1}>
+        <CommandInput
+          onSubmit={handleCommand}
+          history={nav.commandHistory}
+          isActive={nav.mode === 'command'}
         />
       </Box>
-
-      <Box flexDirection="column" marginTop={1} paddingX={1}>
-        <LogPanel
-          logs={logStreamResult.logs}
-          activeTabIndex={nav.selectedLogTabIndex}
-          levelFilter={levelFilter}
-          isFocused={nav.mode === 'logs'}
-          onTabChange={index => setNav(prev => ({ ...prev, selectedLogTabIndex: index }))}
-          onLevelFilterChange={setLevelFilter}
-          height={logPanelHeight}
-        />
-      </Box>
-
-      {nav.mode === 'command' && (
-        <Box marginTop={1} paddingX={1}>
-          <CommandInput
-            onSubmit={handleCommand}
-            history={nav.commandHistory}
-            isActive={nav.mode === 'command'}
-          />
-        </Box>
-      )}
 
       {showInstanceSelector && (
         <Box

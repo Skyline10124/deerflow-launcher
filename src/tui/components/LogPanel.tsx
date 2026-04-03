@@ -69,7 +69,7 @@ export const LogPanel: React.FC<LogPanelProps> = ({
       flexDirection="column"
       borderStyle="round"
       borderColor={THEME.colors.border}
-      height="100%"
+      height={height}
     >
       <Box paddingX={1} justifyContent="space-between">
         <Box>
@@ -105,11 +105,11 @@ export const LogPanel: React.FC<LogPanelProps> = ({
         ))}
       </Box>
 
-      <Box flexDirection="column" flexGrow={1} paddingX={1}>
+      <Box flexDirection="column" flexGrow={1} paddingX={1} overflowY="hidden">
         {visibleLogs.length === 0 ? (
           <Text color={THEME.colors.textMuted}>No logs to display</Text>
         ) : (
-          visibleLogs.map(log => (
+          visibleLogs.slice(0, height - 4).map(log => (
             <LogLine key={log.id} entry={log} />
           ))
         )}
@@ -130,7 +130,7 @@ const LogLine: React.FC<{ entry: LogEntry }> = ({ entry }) => {
         {formatLogLevel(entry.level).padStart(5)}
       </Text>
       <Text> </Text>
-      <Text color={THEME.colors.textSecondary}>{entry.message}</Text>
+      <Text color={THEME.colors.textSecondary} wrap="wrap">{entry.message}</Text>
     </Box>
   );
 };

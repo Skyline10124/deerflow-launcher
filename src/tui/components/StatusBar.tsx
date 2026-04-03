@@ -57,12 +57,39 @@ export const StatusBar: React.FC<StatusBarProps> = ({
 
         <Box flexGrow={1} />
 
-        <Box gap={2}>
-          {instanceCount > 1 && <Shortcut keys={['i']} label="切换实例" />}
-          <Shortcut keys={['←', '→']} label="导航" />
-          <Shortcut keys={['s']} label="启动/停止" />
-          <Shortcut keys={['r']} label="重启" />
-          <Shortcut keys={['q']} label="退出" />
+        <Box gap={1}>
+          {instanceCount > 1 && (
+            <Box>
+              <Text backgroundColor={THEME.colors.bgTertiary} color={THEME.colors.textSecondary}>
+                {' '}i{' '}
+              </Text>
+              <Text color={THEME.colors.textMuted}>实例</Text>
+            </Box>
+          )}
+          <Box>
+            <Text backgroundColor={THEME.colors.bgTertiary} color={THEME.colors.textSecondary}>
+              {' '}←→{' '}
+            </Text>
+            <Text color={THEME.colors.textMuted}>导航</Text>
+          </Box>
+          <Box>
+            <Text backgroundColor={THEME.colors.bgTertiary} color={THEME.colors.textSecondary}>
+              {' '}s{' '}
+            </Text>
+            <Text color={THEME.colors.textMuted}>启动/停止</Text>
+          </Box>
+          <Box>
+            <Text backgroundColor={THEME.colors.bgTertiary} color={THEME.colors.textSecondary}>
+              {' '}r{' '}
+            </Text>
+            <Text color={THEME.colors.textMuted}>重启</Text>
+          </Box>
+          <Box>
+            <Text backgroundColor={THEME.colors.bgTertiary} color={THEME.colors.textSecondary}>
+              {' '}q{' '}
+            </Text>
+            <Text color={THEME.colors.textMuted}>退出</Text>
+          </Box>
         </Box>
       </Box>
       <Box width="100%">
@@ -71,17 +98,3 @@ export const StatusBar: React.FC<StatusBarProps> = ({
     </Box>
   );
 };
-
-const Shortcut: React.FC<{ keys: string[]; label: string }> = ({ keys, label }) => (
-  <Box>
-    {keys.map((k, i) => (
-      <Box key={i}>
-        <Text backgroundColor={THEME.colors.bgTertiary} color={THEME.colors.textSecondary}>
-          {' '}{k}{' '}
-        </Text>
-        {i < keys.length - 1 && <Text> </Text>}
-      </Box>
-    ))}
-    <Text color={THEME.colors.textMuted}> {label}</Text>
-  </Box>
-);

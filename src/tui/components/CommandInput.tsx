@@ -47,6 +47,7 @@ export const CommandInput: React.FC<CommandInputProps> = ({
       borderStyle="round"
       borderColor={isActive ? THEME.colors.borderActive : THEME.colors.border}
       paddingX={1}
+      width="100%"
     >
       <Text color={THEME.colors.primary} bold>❯</Text>
       <Text> </Text>
