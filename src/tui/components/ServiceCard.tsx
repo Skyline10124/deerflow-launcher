@@ -64,7 +64,8 @@ export const ServiceCard: React.FC<ServiceCardProps> = ({
       borderColor={borderColor}
       paddingX={2}
       paddingY={1}
-      width="100%"
+      flexBasis="50%"
+      minWidth={30}
     >
       <Box justifyContent="space-between">
         <Box>

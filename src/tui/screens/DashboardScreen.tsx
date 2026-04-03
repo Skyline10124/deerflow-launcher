@@ -8,6 +8,19 @@ import { ServiceName } from '../../types/index.js';
 import { ProcessStatus } from '../../modules/ProcessMonitor.js';
 import { DEFAULT_SERVICES, SERVICE_PORTS, SERVICE_DESCRIPTIONS, THEME } from '../constants.js';
 import { formatUptime } from '../utils/format.js';
+import { exec, spawn } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
+
+async function getPM2Version(): Promise<string> {
+  try {
+    const { stdout } = await execAsync('pm2 --version');
+    return stdout.trim();
+  } catch {
+    return 'N/A';
+  }
+}
 
 interface DashboardScreenProps {
   onExit?: () => void;
@@ -61,6 +74,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
   const [loading, setLoading] = useState(true);
   const [isExiting, setIsExiting] = useState(false);
   const [levelFilter, setLevelFilter] = useState<LogLevel | 'all'>('all');
+  const [pm2Version, setPM2Version] = useState<string>('...');
 
   const [nav, setNav] = useState<NavigationState>({
     mode: 'grid',
@@ -71,6 +85,10 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
   });
 
   const logStreamResult = useLogStream({ maxLogs: 100 });
+
+  useEffect(() => {
+    getPM2Version().then(setPM2Version);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -218,69 +236,117 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
     exit();
   }, [isExiting, onExit, exit]);
 
+  const executeCLICommand = useCallback(async (cmd: string) => {
+    return new Promise<void>((resolve) => {
+      const fullCmd = cmd.trim();
+      const args = fullCmd.split(/\s+/);
+      
+      const child = spawn('deerflow-launcher', args, {
+        stdio: 'inherit',
+        shell: true,
+        env: {
+          ...process.env,
+          DEERFLOW_PATH: process.env.DEERFLOW_PATH,
+          INSTANCE_ID: process.env.INSTANCE_ID,
+        },
+      });
+
+      child.on('close', () => {
+        resolve();
+      });
+
+      child.on('error', () => {
+        resolve();
+      });
+    });
+  }, []);
+
   const handleCommand = useCallback(
     async (cmd: string) => {
-      const parts = cmd.trim().split(/\s+/);
+      const trimmedCmd = cmd.trim();
+      if (!trimmedCmd) {
+        setNav(prev => ({ ...prev, mode: 'grid' }));
+        return;
+      }
+
+      const parts = trimmedCmd.split(/\s+/);
       const command = parts[0]?.toLowerCase();
       const args = parts.slice(1);
 
-      switch (command) {
-        case 'q':
-        case 'quit':
-        case 'exit':
-          await handleExit();
-          break;
+      const builtInCommands = ['q', 'quit', 'exit', 'start', 'stop', 'restart', 'instance', 'inst', 'help', 'h', 'i'];
+      
+      if (builtInCommands.includes(command)) {
+        switch (command) {
+          case 'q':
+          case 'quit':
+          case 'exit':
+            await handleExit();
+            break;
 
-        case 'start':
-          if (args[0]) {
-            const serviceName = SERVICE_NAMES.find(s => s === args[0]);
-            if (serviceName) {
-              await handleServiceAction(serviceName, 'start');
+          case 'start':
+            if (args[0]) {
+              const serviceName = SERVICE_NAMES.find(s => s === args[0]);
+              if (serviceName) {
+                await handleServiceAction(serviceName, 'start');
+              }
+            } else {
+              for (const name of SERVICE_NAMES) {
+                await handleServiceAction(name, 'start');
+              }
             }
-          }
-          break;
+            break;
 
-        case 'stop':
-          if (args[0]) {
-            const serviceName = SERVICE_NAMES.find(s => s === args[0]);
-            if (serviceName) {
-              await handleServiceAction(serviceName, 'stop');
+          case 'stop':
+            if (args[0]) {
+              const serviceName = SERVICE_NAMES.find(s => s === args[0]);
+              if (serviceName) {
+                await handleServiceAction(serviceName, 'stop');
+              }
+            } else {
+              for (const name of SERVICE_NAMES) {
+                await handleServiceAction(name, 'stop');
+              }
             }
-          }
-          break;
+            break;
 
-        case 'restart':
-          if (args[0]) {
-            const serviceName = SERVICE_NAMES.find(s => s === args[0]);
-            if (serviceName) {
-              await handleServiceAction(serviceName, 'restart');
+          case 'restart':
+            if (args[0]) {
+              const serviceName = SERVICE_NAMES.find(s => s === args[0]);
+              if (serviceName) {
+                await handleServiceAction(serviceName, 'restart');
+              }
+            } else {
+              for (const name of SERVICE_NAMES) {
+                await handleServiceAction(name, 'restart');
+              }
             }
-          }
-          break;
+            break;
 
-        case 'instance':
-        case 'inst':
-          if (args[0]) {
-            requestInstanceSwitch(args[0]);
-          } else {
-            setShowInstanceSelector(true);
-          }
-          break;
+          case 'instance':
+          case 'inst':
+          case 'i':
+            if (args[0]) {
+              requestInstanceSwitch(args[0]);
+            } else {
+              setShowInstanceSelector(true);
+            }
+            break;
 
-        case 'help':
-          break;
-
-        default:
-          break;
+          case 'help':
+          case 'h':
+            break;
+        }
+      } else {
+        await executeCLICommand(trimmedCmd);
       }
 
       setNav(prev => ({
         ...prev,
         mode: 'grid',
-        commandHistory: [...prev.commandHistory, cmd],
+        commandHistory: [...prev.commandHistory, trimmedCmd],
       }));
     },
-    [handleServiceAction, handleExit, requestInstanceSwitch, setShowInstanceSelector]
+    [handleServiceAction, handleExit, requestInstanceSwitch, setShowInstanceSelector, executeCLICommand]
   );
 
   useInput((input, key) => {
@@ -319,7 +385,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
     }
   });
 
-  const logPanelHeight = Math.max(5, Math.floor((terminalSize.height - 12) / 2));
+  const logPanelHeight = Math.max(8, Math.floor((terminalSize.height - 16) / 2));
 
   if (loading) {
     return (
@@ -327,6 +393,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
         <StatusBar
           services={services}
           terminalSize={terminalSize}
+          pm2Version={pm2Version}
           version={version}
           mode="grid"
           currentInstance={currentInstance}
@@ -344,6 +411,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ onExit }) => {
       <StatusBar
         services={services}
         terminalSize={terminalSize}
+        pm2Version={pm2Version}
         version={version}
         mode={nav.mode}
         currentInstance={currentInstance}
